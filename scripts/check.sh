@@ -52,13 +52,13 @@ run_app_ios() {
     (cd App && xcodegen generate)
     DEVICE="${RECIPE_SIMULATOR:-zGeist2_bot-iPhone-17}"
     echo "== iOS app build (iPhone simulator: $DEVICE) =="
-    xcodebuild build -project App/RecipeApp.xcodeproj -scheme RecipeApp \
+    xcodebuild build -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
         -destination "platform=iOS Simulator,name=$DEVICE" -quiet
     echo "== iOS app tests =="
     if [ -e /tmp/app-ios.xcresult ]; then
         rm -rf /tmp/app-ios.xcresult
     fi
-    xcodebuild test -project App/RecipeApp.xcodeproj -scheme RecipeApp \
+    xcodebuild test -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
         -destination "platform=iOS Simulator,name=$DEVICE" \
         -resultBundlePath /tmp/app-ios.xcresult -quiet
 }
@@ -75,7 +75,7 @@ run_app_macos() {
     echo "== xcodegen generate =="
     (cd App && xcodegen generate)
     echo "== macOS app build =="
-    xcodebuild build -project App/RecipeApp.xcodeproj -scheme RecipeApp \
+    xcodebuild build -project App/RecipeApp.xcodeproj -scheme RecipeApp-macOS \
         -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO -quiet
 }
 

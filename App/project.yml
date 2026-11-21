@@ -38,6 +38,12 @@ targets:
       - RecipeAppTests
     dependencies:
       - target: RecipeApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        # Host the tests in the app so app-level state is reachable.
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/RecipeApp.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/RecipeApp"
+        BUNDLE_LOADER: "$(TEST_HOST)"
   RecipeAppTests_macOS:
     type: bundle.unit-test
     platform: macOS
@@ -45,12 +51,25 @@ targets:
       - RecipeAppTests
     dependencies:
       - target: RecipeApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/RecipeApp.app/Contents/MacOS/RecipeApp"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 schemes:
-  RecipeApp:
+  RecipeApp-iOS:
     build:
       targets:
         RecipeApp: all
+        RecipeAppTests_iOS: [test]
     test:
       targets:
         - RecipeAppTests_iOS
+  RecipeApp-macOS:
+    build:
+      targets:
+        RecipeApp: all
+        RecipeAppTests_macOS: [test]
+    test:
+      targets:
         - RecipeAppTests_macOS

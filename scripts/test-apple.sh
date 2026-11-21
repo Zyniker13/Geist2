@@ -26,12 +26,12 @@ echo "==> xcodegen"
 (cd App && xcodegen generate)
 
 echo "==> app + unit tests, macOS"
-xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp \
+xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-macOS \
     -destination 'platform=macOS' -derivedDataPath "$DERIVED" \
     test -quiet
 
 echo "==> app + unit tests, iOS simulator ($DEVICE)"
-xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp \
+xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
     -destination "platform=iOS Simulator,name=$DEVICE" -derivedDataPath "$SIM_DERIVED" \
     test -quiet
 
