@@ -38,4 +38,4 @@ jobs:
       - name: Generate the Xcode project
         run: (cd App && xcodegen generate)
       - name: Build the macOS app
-        run: xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build -quiet
+        run: xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build -quiet

@@ -33,6 +33,14 @@ let package = Package(
             from: "1.1.0"),
     ],
     targets: [
+        // The system zlib on Linux, which RawDeflate reaches when Apple's
+        // Compression framework is unavailable. On Apple platforms the
+        // target is unused; declaring it keeps the conditional imports
+        // simple.
+        .systemLibrary(
+            name: "CZlib",
+            pkgConfig: "zlib",
+            providers: [.apt(["zlib1g-dev"])]),
         .target(name: "RecipeCore", dependencies: [
             .product(name: "GRDB", package: "GRDB.swift"),
             .product(name: "Crypto", package: "swift-crypto"),
@@ -42,6 +50,7 @@ let package = Package(
         .target(name: "RecipeModules", dependencies: [
             "RecipeCore",
             .product(name: "Crypto", package: "swift-crypto"),
+            "CZlib",
         ], resources: [
             .copy("Resources/Schemas")
         ]),
