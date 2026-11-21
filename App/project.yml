@@ -1,0 +1,56 @@
+name: RecipeApp
+options:
+  bundleIdPrefix: com.bristleconeit
+  createIntermediateGroups: true
+packages:
+  RecipeKit:
+    path: ..
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+targets:
+  RecipeApp:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - RecipeApp
+    dependencies:
+      - package: RecipeKit
+        products:
+          - RecipeCore
+          - RecipeImport
+          - RecipeModules
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bristleconeit.geist2
+        PRODUCT_NAME: RecipeApp
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_CFBundleDisplayName: RecipeApp
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+  RecipeAppTests_iOS:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - RecipeAppTests
+    dependencies:
+      - target: RecipeApp
+  RecipeAppTests_macOS:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - RecipeAppTests
+    dependencies:
+      - target: RecipeApp
+schemes:
+  RecipeApp:
+    build:
+      targets:
+        RecipeApp: all
+    test:
+      targets:
+        - RecipeAppTests_iOS
+        - RecipeAppTests_macOS

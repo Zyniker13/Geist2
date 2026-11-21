@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux (portable targets)
+    runs-on: ubuntu-24.04
+    container: swift:6.4.2
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # GRDB builds its bundled SQLite shim on Linux, which needs the SQLite
+      # development headers; the Swift container image does not ship them.
+      - name: Install SQLite headers
+        run: apt-get update && apt-get install -y --no-install-recommends libsqlite3-dev
+      - name: Build and test
+        shell: bash
+        run: swift test 2>&1 | tail -25
+
+  macos:
+    name: macOS (package, apps)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install XcodeGen 2.46.0 (pinned)
+        run: |
+          curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          ditto -x -k /tmp/xcodegen.zip /tmp/xcodegen
+          sudo cp -rf /tmp/xcodegen/xcodegen/bin /tmp/xcodegen/xcodegen/share /usr/local/
+      - name: Package tests
+        run: swift test 2>&1 | tail -10
+      - name: Generate the Xcode project
+        run: (cd App && xcodegen generate)
+      - name: Build the macOS app
+        run: xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build -quiet
