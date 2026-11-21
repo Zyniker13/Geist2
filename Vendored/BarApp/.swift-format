@@ -1,0 +1,14 @@
+{
+  "version" : 1,
+  "indentation" : {
+    "tabs" : null,
+    "spaces" : 4
+  },
+  "indentStrings" : true,
+  "lineLength" : 100,
+  "spacing" : {
+    "parentheses" : false
+  },
+  "lineBreakBeforeMultilineCollectionElements" : true,
+  "usesSpacesInFunctionArgumentParens" : false
+}

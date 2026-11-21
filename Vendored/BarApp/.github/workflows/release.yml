@@ -1,0 +1,144 @@
+name: Release
+
+# Builds the release artifacts from a version tag and publishes them as a
+# DRAFT GitHub release: the maintainer reviews the draft, signs the
+# archives with the signing identity, and publishes it (the App Store
+# upload is the maintainer's). barmod ships with every app release as a
+# standalone binary for macOS and Linux.
+#
+# Triggered by a tag push (v1.0.0). A manual run (workflow_dispatch)
+# exercises the pipeline on the current main without creating a tag or a
+# release; its artifacts are attached to the run itself.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: Archives + barmod (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install XcodeGen 2.46.0 (pinned)
+        run: |
+          curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          ditto -x -k /tmp/xcodegen.zip /tmp/xcodegen
+          sudo cp -rf /tmp/xcodegen/xcodegen/bin /tmp/xcodegen/xcodegen/share /usr/local/
+      - name: Generate the Xcode project
+        run: xcodegen generate
+      - name: Archive the iOS app (unsigned)
+        run: |
+          xcodebuild -scheme BarApp-iOS \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/BarApp-iOS.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO
+      - name: Verify the widget extension is embedded in the app
+        run: |
+          test -d build/BarApp-iOS.xcarchive/Products/Applications/BarApp.app/PlugIns/BarAppWidgets.appex
+      - name: Archive the macOS app (unsigned)
+        run: |
+          xcodebuild -scheme BarApp-macOS \
+            -destination 'generic/platform=macOS' \
+            -archivePath build/BarApp-macOS.xcarchive \
+            archive CODE_SIGNING_ALLOWED=NO
+      - name: Build barmod (macOS)
+        run: swift build -c release
+      - name: Package the artifacts
+        run: |
+          cd .build/release
+          zip -qy barmod-macos.zip barmod
+          cd -
+          zip -qry build/BarApp-iOS-unsigned.zip build/BarApp-iOS.xcarchive
+          zip -qry build/BarApp-macOS-unsigned.zip build/BarApp-macOS.xcarchive
+          # upload-artifact stores multi-path uploads under their
+          # least-common-ancestor directories (build/, .build/release/);
+          # collect everything into one flat directory for the release.
+          mkdir -p dist
+          cp build/BarApp-iOS-unsigned.zip build/BarApp-macOS-unsigned.zip \
+            .build/release/barmod-macos.zip dist/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-artifacts-macos
+          path: dist
+          if-no-files-found: error
+
+  linux:
+    name: barmod (Linux)
+    runs-on: ubuntu-24.04
+    container: swift:6.4.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # Same system libraries the package CI job needs on Linux (GRDB's
+      # SQLite shim, the CZlib target); zip packages the binary.
+      - name: Install SQLite, zlib, and zip
+        run: apt-get update && apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev zip
+      - name: Build barmod (Linux)
+        run: swift build -c release
+      - name: Package the artifact
+        run: |
+          (cd .build/release && zip -q barmod-linux.zip barmod)
+          mkdir -p dist
+          cp .build/release/barmod-linux.zip dist/
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-artifacts-linux
+          path: dist
+          if-no-files-found: error
+
+  publish:
+    name: Draft release
+    runs-on: ubuntu-24.04
+    needs: [macos, linux]
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Download artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: artifacts
+      - name: List downloaded artifacts
+        run: ls -laR artifacts/ || echo "::error::artifacts/ missing after download"
+      - name: Verify gh is available
+        run: gh --version
+      - name: Publish the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          # The CHANGELOG headings carry no "v" prefix (## [1.0.1] - date).
+          VERSION="${TAG#v}"
+          # Release notes come from the matching CHANGELOG section.
+          # index() instead of a regex: bracket escaping in awk strings
+          # is not portable (mawk vs gawk).
+          awk -v tag="$VERSION" '
+            index($0, "## [" tag "]") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md" > notes.md
+          # upload-artifact keeps source directory structure inside the
+          # artifact, and bash globs do not match dot directories, so
+          # shell globs cannot be trusted to find the zips; collect them
+          # explicitly. Asset file names contain no spaces.
+          FILE_ARGS=$(find artifacts -type f -name '*.zip' | sort)
+          [ -n "$FILE_ARGS" ] || {
+            echo "::error::no zip files under artifacts/ after download"
+            exit 1
+          }
+          echo "Assets to upload:"
+          echo "$FILE_ARGS"
+          if ! gh release create "$TAG" \
+            --draft \
+            --title "$TAG" \
+            --notes-file notes.md \
+            $FILE_ARGS; then
+            echo "::error::gh release create failed for $TAG; assets: $(echo "$FILE_ARGS" | tr '\n' ' ')"
+            exit 1
+          fi

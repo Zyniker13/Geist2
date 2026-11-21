@@ -1,0 +1,241 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: swift-format lint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Format check
+        run: ./scripts/check.sh format
+
+  icons:
+    name: Icons reproduce from the script
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Regenerate the icons and check nothing changed
+        run: |
+          swift scripts/make-icons.swift
+          git diff --exit-code -- App/Resources/Assets.xcassets
+
+  package-linux:
+    name: Package (Linux, Swift container)
+    runs-on: ubuntu-24.04
+    container: swift:6.4.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      # GRDB builds its bundled SQLite shim on Linux, which needs the SQLite
+      # development headers; the Swift container image does not ship them.
+      # The coverage gate is a Python script, so python3 must exist too.
+      - name: Install SQLite, zlib, and python3
+        # zlib1g-dev is needed for the CZlib system library target: the raw
+        # DEFLATE path behind the ZIP module reader uses the system zlib on
+        # Linux. The Swift container image does not ship the headers.
+        run: apt-get update && apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev python3
+      # Container jobs default to sh, which lacks pipefail; ask for bash so a
+      # failing check.sh fails the step.
+      - name: Build and test
+        shell: bash
+        run: ./scripts/check.sh package 2>&1 | tee /tmp/pkg-linux.log
+      - name: Failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "### package-linux diagnostics"
+            echo "--- relevant log lines ---"
+            grep -E "error:|warning:|fatal|Tests failed|BUILD" /tmp/pkg-linux.log | tail -40 || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E "error:" /tmp/pkg-linux.log | tail -12 | sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-180 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
+  package-macos:
+    name: Package (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Build and test
+        run: ./scripts/check.sh package 2>&1 | tee /tmp/pkg-macos.log
+      - name: Failure diagnostics
+        if: failure()
+        run: |
+          {
+            echo "### package-macos diagnostics"
+            echo "--- relevant log lines ---"
+            grep -E "error:|warning:|fatal|Tests failed|BUILD" /tmp/pkg-macos.log | tail -40 || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E "error:" /tmp/pkg-macos.log | tail -12 | sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-180 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
+  app-ios:
+    name: App (iPhone simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install XcodeGen 2.46.0 (pinned)
+        run: |
+          curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          ditto -x -k /tmp/xcodegen.zip /tmp/xcodegen
+          sudo cp -rf /tmp/xcodegen/xcodegen/bin /tmp/xcodegen/xcodegen/share /usr/local/
+      - name: Build and test the app on the iPhone simulator
+        run: |
+          ./scripts/check.sh app-ios 2>&1 | tee /tmp/app-ios.log
+          status=${PIPESTATUS[0]}
+          {
+            echo "### app-ios diagnostics"
+            echo "exit status: $status"
+            xcodebuild -version
+            echo "--- devices ---"
+            xcrun simctl list devices available | grep -E 'iPhone' | head -8 || true
+            echo "--- relevant log lines ---"
+            grep -E -A3 "Failing tests" /tmp/app-ios.log | head -12 || true
+            grep -E "cold start measured|cold start took|error:|warning: |TEST FAILED|BUILD|crashed|Restarting|Early unexpected|failed \(" /tmp/app-ios.log | tail -40 || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E -A3 "Failing tests" /tmp/app-ios.log | head -4 | sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-180 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          grep -E -B2 -A30 "Finished with error: App installation failed" /tmp/app-ios.log | grep -E "Code:|Domain:|User Info|NSLocalized|Underlying|reason|invalid|damaged|reject|Cannot|Unable" | head -4 | sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-180 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          grep -E "cold start measured|cold start took|error:|TEST FAILED|crashed|Restarting|Early unexpected" /tmp/app-ios.log | tail -2 | sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-180 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          exit "$status"
+      - name: Extract the test failure messages
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results summary --path /tmp/app-ios.xcresult --format json \
+            > /tmp/xcresult-summary.json 2>/dev/null || true
+          xcrun xcresulttool get test-results tests --path /tmp/app-ios.xcresult --format json \
+            > /tmp/xcresult-tests.json 2>/dev/null || true
+          python3 - <<'PY' > /tmp/failure-lines.txt
+          import json
+
+          lines = []
+          for path in ("/tmp/xcresult-summary.json", "/tmp/xcresult-tests.json"):
+              try:
+                  with open(path) as f:
+                      data = json.load(f)
+              except Exception:
+                  continue
+              def walk(node, context=()):
+                  if isinstance(node, dict):
+                      name = node.get("name") or node.get("testName")
+                      new_context = context + ((name,) if isinstance(name, str) else ())
+                      location = ""
+                      file_name = node.get("fileName") or node.get("sourceFilePath")
+                      if isinstance(file_name, str) and file_name:
+                          line = node.get("lineNumber") or node.get("line")
+                          location = f"{file_name.rsplit('/', 1)[-1]}:{line}: " if line else f"{file_name.rsplit('/', 1)[-1]}: "
+                      for key, value in node.items():
+                          key_l = key.lower()
+                          if isinstance(value, str) and (
+                              "fail" in key_l or "message" in key_l
+                          ):
+                              prefix = " > ".join(new_context[-3:])
+                              lines.append(f"{prefix}: {location}{value}")
+                          elif isinstance(value, (dict, list)):
+                              walk(value, new_context)
+                      return
+                  if isinstance(node, list):
+                      for item in node:
+                          walk(item, context)
+              walk(data)
+          seen = set()
+          for line in lines:
+              if line not in seen and line.strip():
+                  seen.add(line)
+                  print(line[:300])
+          PY
+          {
+            echo "### app-ios failure messages"
+            if [ -s /tmp/failure-lines.txt ]; then
+              cat /tmp/failure-lines.txt
+            else
+              echo "(no structured failure text extracted; see the raw log)"
+              tail -60 /tmp/app-ios.log || true
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -s /tmp/failure-lines.txt ]; then
+            sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' /tmp/failure-lines.txt | cut -c1-400 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi
+      - name: Upload the app-ios log for diagnosis
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: app-ios-log
+          path: /tmp/app-ios.log
+          retention-days: 7
+      # "Unable to Install" on the simulator is validated at install time and
+      # xcodebuild's top-level error hides the underlying CoreSimulator
+      # reason. The test step already left a built app in DerivedData, so
+      # install it with simctl directly (its output names the reason) and
+      # bisect the bundle: full app vs. the app with PlugIns removed vs. the
+      # app reverted to the pre-bump version strings.
+      - name: Diagnose the install failure (simctl install bisect)
+        if: failure()
+        timeout-minutes: 15
+        run: |
+          set -u
+          if command -v timeout >/dev/null 2>&1; then RUN_TO="timeout 150"
+          elif command -v gtimeout >/dev/null 2>&1; then RUN_TO="gtimeout 150"
+          else RUN_TO=""; fi
+          APP="$(ls -d "$HOME"/Library/Developer/Xcode/DerivedData/BarApp-*/Build/Products/Debug-iphonesimulator/BarApp.app 2>/dev/null | head -1)"
+          {
+            echo "--- app bundle ---"
+            echo "${APP:-NOT FOUND}"
+          } > diag.txt
+          if [ -z "$APP" ]; then
+            echo "::error::no built app bundle found in DerivedData"
+            cat diag.txt
+            exit 0
+          fi
+          DEVICE="$(xcrun simctl list devices available | grep -m1 'iPhone' | sed -E 's/^[[:space:]]+//; s/ \(.*//')"
+          echo "device: [$DEVICE]" >> diag.txt
+          xcrun simctl boot "$DEVICE" >> diag.txt 2>&1 || true
+          xcrun simctl bootstatus "$DEVICE" -b >> diag.txt 2>&1 || true
+          attempt() {
+            echo "--- $1 ---" >> diag.txt
+            $RUN_TO xcrun simctl install "$DEVICE" "$2" >> diag.txt 2>&1
+            echo "install exit: $?" >> diag.txt
+            xcrun simctl uninstall "$DEVICE" com.example.barapp >> diag.txt 2>&1 || true
+          }
+          attempt "full app (appex embedded)" "$APP"
+          cp -R "$APP" /tmp/stripped.app
+          rm -rf /tmp/stripped.app/PlugIns
+          attempt "stripped app (no PlugIns)" /tmp/stripped.app
+          cp -R "$APP" /tmp/oldver.app
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0" -c "Set :CFBundleVersion 2" /tmp/oldver.app/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0" -c "Set :CFBundleVersion 2" /tmp/oldver.app/PlugIns/BarAppWidgets.appex/Info.plist
+          attempt "old-version app (1.0/2, appex embedded)" /tmp/oldver.app
+          cat diag.txt >> "$GITHUB_STEP_SUMMARY"
+          grep -v -E "^(Device|Waiting|Booting|xcrun:)" diag.txt | grep -E "install exit|Unable|error|not found|Domain|Code:|damaged|invalid|device:|^--- " | head -10 | sed -e 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-180 | while IFS= read -r line; do
+            [ -n "$line" ] && echo "::error::$line"
+          done
+          exit 0
+
+  app-macos:
+    name: App (macOS build)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install XcodeGen 2.46.0 (pinned)
+        run: |
+          curl -fsSL -o /tmp/xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          ditto -x -k /tmp/xcodegen.zip /tmp/xcodegen
+          sudo cp -rf /tmp/xcodegen/xcodegen/bin /tmp/xcodegen/xcodegen/share /usr/local/
+      - name: Build the macOS app
+        run: ./scripts/check.sh app-macos
