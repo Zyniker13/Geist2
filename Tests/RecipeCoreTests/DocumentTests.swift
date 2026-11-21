@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import RecipeCore
 
 struct SyncPortTests {
@@ -19,9 +20,10 @@ struct SyncPortTests {
 
     @Test func nullPortAcceptsAnything() async {
         let port = NullSyncPort()
-        await port.apply(DocumentChange(
-            kind: .list, documentID: "l", changedFieldIDs: ["lines"],
-            fields: [:], modifiedAt: 1))
+        await port.apply(
+            DocumentChange(
+                kind: .list, documentID: "l", changedFieldIDs: ["lines"],
+                fields: [:], modifiedAt: 1))
     }
 }
 
@@ -52,18 +54,22 @@ struct RecipeDocumentTests {
         recipe.cookTime = Duration.minutes(30)
         recipe.totalTime = Duration.minutes(40)
         recipe.ingredientSections = [
-            IngredientSection(name: "", lines: [
-                IngredientLine(
-                    quantity: Quantity(Decimal(string: "2")!), unitID: "cup",
-                    item: "chicken stock", note: "(or vegetable)",
-                    originalText: "2 cups chicken stock (or vegetable)"),
-                IngredientLine(item: "salt", toTaste: true, originalText: "Salt to taste"),
-            ])
+            IngredientSection(
+                name: "",
+                lines: [
+                    IngredientLine(
+                        quantity: Quantity(Decimal(string: "2")!), unitID: "cup",
+                        item: "chicken stock", note: "(or vegetable)",
+                        originalText: "2 cups chicken stock (or vegetable)"),
+                    IngredientLine(item: "salt", toTaste: true, originalText: "Salt to taste"),
+                ])
         ]
         recipe.stepSections = [
-            StepSection(name: "", steps: [
-                Step(text: "Simmer for 20 minutes.", timers: [Duration.minutes(20)])
-            ])
+            StepSection(
+                name: "",
+                steps: [
+                    Step(text: "Simmer for 20 minutes.", timers: [Duration.minutes(20)])
+                ])
         ]
         recipe.tags = ["soup", "winter"]
         recipe.categories = ["Dinner"]
