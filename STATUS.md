@@ -9,17 +9,22 @@
   rescaled step text. 72 tests in 15 suites green on host, Linux
   container, and CI; decisions 0007 (bare ounce) and 0008 (scaling and
   conversion) recorded.
-- **Last done:** `b44a59b` — step-text replacement fixed to
-  longest-form-first (the id pattern "2 cup" sliced the plural alias
-  "2 cups" into "4 cupss" on an unlucky Set order; only reproducible on
-  Linux CI), CI green.
-- **Next step:** M3 Import — JSON-LD/Microdata/heuristic extraction
-  into `RecipeImport`, the app import surfaces, share extensions, and
-  the 40-fixture corpus.
+- **Last done:** `7cc0d8c` — M3.1 first third: JSON-LD extraction
+  (Recipe blocks in @graph/arrays, HowToSection/HowToStep, images,
+  nutrition), full ISO 8601 durations (parse + render + round-trip),
+  `RecipeAssembler` (yield forms, keywords→tags, prose timers inside
+  steps, M2 parser on every line). 17 new tests; 89 total green on host
+  and Linux; CI green.
+- **Next step:** M3.1 continued — Microdata extractor, then the
+  heuristic fallback; then M3.2 app surfaces, M3.3 share extensions,
+  M3.4 the 40-fixture corpus.
 - **Blocked on:** nothing.
 
 ## Log
 
+- 2026-11-22: M3.1 part 1 committed `7cc0d8c` — JSON-LD extractor,
+  ISO durations, recipe assembly (17 tests; 89 total, host+Linux green,
+  CI green). Next: Microdata, heuristic, fixtures.
 - 2026-11-22: M2 CLOSED — CI green (`b44a59b`); corpus 517/517, 72
   tests in 15 suites across host/Linux/CI; `recipe-cli scale` 0.5x/2x/3x
   verified with step text.
