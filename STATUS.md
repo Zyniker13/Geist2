@@ -1,22 +1,22 @@
 # Status
 
-- **Current milestone:** M3 Import — M3.1 extraction core DONE. JSON-LD
-  (`7cc0d8c`), Microdata with the HTML tree reader (`2ce3a5b`, CI
-  green), heuristic fallback (`1c2e32f`, CI queued). Three extractors
-  share `JSONLDRecipe` and `RecipeAssembler`; 106 tests in 16 suites
-  green on host.
-- **Last done:** `1c2e32f` — heuristic fallback: title near the top,
-  ingredient/step zones by headings, inline "Ingredients: …" lists,
-  yield and time declarations parsed to ISO 8601, named step sections,
-  img-tag images; list-marker lines are content, never headings.
-- **Next step:** check CI on `1c2e32f`; then M3.2 app surfaces (paste
-  link, browser fallback, paste text, photos, OCR) behind the
-  Extraction.swift result types, then M3.3 share extensions, M3.4 the
+- **Current milestone:** M3 Import — M3.1 extraction core DONE
+  (JSON-LD `7cc0d8c`, Microdata `2ce3a5b`, heuristic `1c2e32f`).
+  M3.2 app surfaces DONE (`74bc133`): import sheet with text/link/
+  photo tabs, isolated browser fallback for JS pages, Vision OCR,
+  library + detail views; UI test drives text import end to end,
+  screenshots in docs/look-dev/.
+- **Last done:** `74bc133` — M3.2 app surfaces; check.sh green; pushed.
+- **Next step:** M3.3 share extensions (iOS + macOS), then M3.4 the
   40-fixture corpus.
 - **Blocked on:** nothing.
 
 ## Log
 
+- 2026-11-22: M3.2 app surfaces committed `74bc133` — import sheet
+  (text/link/photo), browser fallback, Vision OCR, library + detail
+  views, end-to-end UI test with screenshots. Default root moved to
+  Documents (Application Support hit simulator EIO on shared host).
 - 2026-11-22: heuristic fallback committed `1c2e32f` (8 tests; 106
   total green on host). Microdata committed `2ce3a5b`, CI green (14
   tests) — HTMLTree rewritten to a flat node array assembled bottom-up
