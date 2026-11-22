@@ -11,9 +11,10 @@
   SharedLibrary.root with Documents fallback (decision 0010).
   Proven on simulator: recipe written into the group container by the
   host is listed by the app (docs/look-dev/).
-- **Last done:** `897e897` — share extensions; package tests 72 green,
-  macOS app tests green (after freeing 31 GB: disk was full, Vision
-  OCR failed to extract its model cache), iOS test run in flight.
+- **Last done:** `4d49ad5` — extension Info.plist repaired (the commit
+  `897e897` had lost its NSExtension block and CFBundleDisplayName;
+  installd refused the appex without them); iOS app tests + UI test
+  green through sim-lock, appex installs cleanly.
 - **Next step:** share-sheet end-to-end from Safari, then M3.4 the
   40-fixture corpus.
 - **Blocked on:** nothing. (macOS extension embedding may block on a
