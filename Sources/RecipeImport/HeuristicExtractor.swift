@@ -45,6 +45,19 @@ enum HeuristicExtractor {
 
     static func extract(from html: String) -> JSONLDRecipe? {
         let candidates = scan(html)
+        return recipe(from: candidates)
+    }
+
+    /// Extracts from plain pasted text: no HTML to strip, the lines
+    /// are exactly what the user gave.
+    static func extractText(_ text: String) -> JSONLDRecipe? {
+        let candidates = scanText(text)
+        return recipe(from: candidates)
+    }
+
+    /// Builds the recipe from scanned candidates, or nil when nothing
+    /// recipe-shaped was found.
+    private static func recipe(from candidates: Candidates) -> JSONLDRecipe? {
         guard let title = candidates.title, !title.isEmpty,
             !candidates.ingredients.isEmpty || !candidates.steps.isEmpty
         else {
@@ -74,10 +87,26 @@ enum HeuristicExtractor {
 
     private static func scan(_ html: String) -> Candidates {
         let lines = visibleLines(html)
+        return process(lines: lines.map { ($0.text, $0.position) }, imageUrls: imageUrls(html))
+    }
+
+    private static func scanText(_ text: String) -> Candidates {
+        let lines =
+            text
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return process(lines: lines.map { ($0, -1) }, imageUrls: [])
+    }
+
+    /// The shared line-classification pass over the page's or paste's
+    /// visible lines.
+    private static func process(
+        lines: [(text: String, position: Int)], imageUrls: [String]
+    ) -> Candidates {
         var candidates = Candidates(
             title: nil, summary: nil, ingredients: [], steps: [],
-            sections: [], yield: nil, times: [:], images: [])
-        candidates.images = imageUrls(html)
+            sections: [], yield: nil, times: [:], images: imageUrls)
 
         var mode: Mode = .preamble
         var currentSection = ""
@@ -149,7 +178,9 @@ enum HeuristicExtractor {
 
             switch mode {
             case .preamble:
-                if candidates.title == nil, isTitleLike(text, position: line.position) {
+                if candidates.title == nil,
+                    isTitleLike(text, position: line.position)
+                {
                     candidates.title = text
                 } else if candidates.title != nil, candidates.summary == nil,
                     text.count >= 30, !looksLikeYield(lowered),

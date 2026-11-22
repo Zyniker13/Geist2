@@ -44,6 +44,11 @@ public struct ExtractionResult {
         self.document = document
         self.partialFields = partialFields
     }
+
+    /// True when every field came from structured data, not guesses.
+    public var allConfident: Bool {
+        document != nil && partialFields.isEmpty
+    }
 }
 
 /// One named field held aside for review.
@@ -70,4 +75,68 @@ public enum ExtractionError: Error, Equatable {
     case notARecipe
     /// The HTML could not be read.
     case unreadableHTML
+}
+
+/// The import entry point: run the extractors in order of trust and
+/// stop at the first hit. Every path ends in the M2 parser.
+public enum RecipeExtractor {
+    /// Which extractor produced the result.
+    public struct Report: Sendable {
+        public var source: FieldSource
+        public var document: RecipeDocument
+
+        init(source: FieldSource, document: RecipeDocument) {
+            self.source = source
+            self.document = document
+        }
+    }
+
+    /// Extract from an HTML page. `now` is the creation timestamp the
+    /// caller supplies (RecipeCore is deterministic); `id` is the new
+    /// document's identity.
+    public static func extract(
+        fromHTML html: String, now epochSeconds: Int64, id: String
+    ) -> Report? {
+        let sources: [(FieldSource, JSONLDRecipe?)] = [
+            (.jsonLd, JSONLDExtractor.extract(from: html)),
+            (.microdata, MicrodataExtractor.extract(from: html)),
+            (.heuristic, HeuristicExtractor.extract(from: html)),
+        ]
+        for (source, recipe) in sources {
+            guard let recipe,
+                let document = RecipeAssembler.document(
+                    from: recipe, now: epochSeconds, id: id)
+            else { continue }
+            return Report(source: source, document: document)
+        }
+        return nil
+    }
+
+    /// Extract from plain text a user pasted: line-structured recipe
+    /// text, no HTML.
+    public static func extract(
+        fromText text: String, now epochSeconds: Int64, id: String
+    ) -> Report? {
+        guard let recipe = HeuristicExtractor.extractText(text),
+            let document = RecipeAssembler.document(
+                from: recipe, now: epochSeconds, id: id)
+        else { return nil }
+        return Report(source: .heuristic, document: document)
+    }
+
+    /// Fetch a page over the network and extract from it. The caller
+    /// supplies the fetch: RecipeImport stays synchronous and offline
+    /// for tests, and the app injects its own session.
+    public static func extract(
+        from url: String,
+        fetching: (String) async throws -> String,
+        now epochSeconds: Int64, id: String
+    ) async throws -> Report {
+        let html = try await fetching(url)
+        guard !html.isEmpty else { throw ExtractionError.unreadableHTML }
+        guard let report = extract(fromHTML: html, now: epochSeconds, id: id) else {
+            throw ExtractionError.notARecipe
+        }
+        return report
+    }
 }
