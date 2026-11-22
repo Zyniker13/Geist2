@@ -85,7 +85,7 @@ public enum RecipeExtractor {
         public var source: FieldSource
         public var document: RecipeDocument
 
-        init(source: FieldSource, document: RecipeDocument) {
+        public init(source: FieldSource, document: RecipeDocument) {
             self.source = source
             self.document = document
         }

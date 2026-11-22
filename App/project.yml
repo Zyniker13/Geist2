@@ -56,15 +56,27 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/RecipeApp.app/Contents/MacOS/RecipeApp"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  RecipeAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - RecipeAppUITests
+    dependencies:
+      - target: RecipeApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
 schemes:
   RecipeApp-iOS:
     build:
       targets:
         RecipeApp: all
         RecipeAppTests_iOS: [test]
+        RecipeAppUITests: [test]
     test:
       targets:
         - RecipeAppTests_iOS
+        - RecipeAppUITests
   RecipeApp-macOS:
     build:
       targets:

@@ -1,21 +1,16 @@
+import RecipeCore
 import SwiftUI
 
 @main
 struct RecipeApp: App {
+    @StateObject private var library = LibraryModel()
+    @StateObject private var importer = ImportModel()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-        }
-    }
-}
-
-struct ContentView: View {
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView(
-                "Your recipe library",
-                systemImage: "book.closed",
-                description: Text("Recipes you add or import will appear here."))
+            LibraryView()
+                .environmentObject(library)
+                .environmentObject(importer)
         }
     }
 }
