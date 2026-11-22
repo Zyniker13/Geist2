@@ -1,27 +1,27 @@
 # Status
 
-- **Current milestone:** M2 Ingredients, units, scaling — DONE (CI
-  green on `b44a59b`). Parser with the 517-line exact corpus (100%,
-  gate 98%); per-line metric/US conversion (`RecipeConversion`), density
-  table (`IngredientDensity`), temperature parsing/conversion
-  (`Temperature`); recipe-level scaling (`factor/scaledLine/scaledSections/
-  stepText`); `recipe-cli scale` shows the demo soup at 0.5x/2x/3x with
-  rescaled step text. 72 tests in 15 suites green on host, Linux
-  container, and CI; decisions 0007 (bare ounce) and 0008 (scaling and
-  conversion) recorded.
-- **Last done:** `7cc0d8c` — M3.1 first third: JSON-LD extraction
-  (Recipe blocks in @graph/arrays, HowToSection/HowToStep, images,
-  nutrition), full ISO 8601 durations (parse + render + round-trip),
-  `RecipeAssembler` (yield forms, keywords→tags, prose timers inside
-  steps, M2 parser on every line). 17 new tests; 89 total green on host
-  and Linux; CI green.
-- **Next step:** M3.1 continued — Microdata extractor, then the
-  heuristic fallback; then M3.2 app surfaces, M3.3 share extensions,
-  M3.4 the 40-fixture corpus.
+- **Current milestone:** M3 Import — M3.1 extraction core DONE. JSON-LD
+  (`7cc0d8c`), Microdata with the HTML tree reader (`2ce3a5b`, CI
+  green), heuristic fallback (`1c2e32f`, CI queued). Three extractors
+  share `JSONLDRecipe` and `RecipeAssembler`; 106 tests in 16 suites
+  green on host.
+- **Last done:** `1c2e32f` — heuristic fallback: title near the top,
+  ingredient/step zones by headings, inline "Ingredients: …" lists,
+  yield and time declarations parsed to ISO 8601, named step sections,
+  img-tag images; list-marker lines are content, never headings.
+- **Next step:** check CI on `1c2e32f`; then M3.2 app surfaces (paste
+  link, browser fallback, paste text, photos, OCR) behind the
+  Extraction.swift result types, then M3.3 share extensions, M3.4 the
+  40-fixture corpus.
 - **Blocked on:** nothing.
 
 ## Log
 
+- 2026-11-22: heuristic fallback committed `1c2e32f` (8 tests; 106
+  total green on host). Microdata committed `2ce3a5b`, CI green (14
+  tests) — HTMLTree rewritten to a flat node array assembled bottom-up
+  (value-type stack copies lost nested children), text flushed before
+  close tags, schema-cased nutrition keys, image dedupe.
 - 2026-11-22: M3.1 part 1 committed `7cc0d8c` — JSON-LD extractor,
   ISO durations, recipe assembly (17 tests; 89 total, host+Linux green,
   CI green). Next: Microdata, heuristic, fixtures.
