@@ -31,8 +31,12 @@ xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-macOS \
     test -quiet
 
 echo "==> app + unit tests, iOS simulator ($DEVICE)"
+# The App Group entitlement is iOS-only: macOS ad-hoc signing rejects
+# it, so project.yml leaves it out and the iOS build injects it here
+# (decision 0010).
 xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
     -destination "platform=iOS Simulator,name=$DEVICE" -derivedDataPath "$SIM_DERIVED" \
+    CODE_SIGN_ENTITLEMENTS="$(pwd)/App/RecipeApp/RecipeApp.entitlements" \
     test -quiet
 
 if [ "${1:-}" = "--smoke" ]; then

@@ -6,3 +6,7 @@ xcuserdata/
 core
 core.*
 *.xcresult
+
+# Local build products
+build/
+App/build/

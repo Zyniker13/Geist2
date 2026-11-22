@@ -68,26 +68,18 @@ final class ImportModel: ObservableObject {
         html: String? = nil, text: String? = nil, url: String? = nil,
         into library: LibraryModel
     ) async {
-        let now = Int64(Date().timeIntervalSince1970)
-        let id = UUID().uuidString
+        stage = .working("Reading…")
         do {
-            let report: RecipeExtractor.Report?
-            if let html {
-                report = RecipeExtractor.extract(fromHTML: html, now: now, id: id)
-            } else if let text {
-                report = RecipeExtractor.extract(fromText: text, now: now, id: id)
-            } else {
-                report = nil
-            }
-            guard let report else {
+            guard
+                let document = SharedLibrary.extract(
+                    html: html, text: text, url: url,
+                    now: Int64(Date().timeIntervalSince1970),
+                    id: UUID().uuidString)
+            else {
                 stage = .failed("No recipe found in that.")
                 return
             }
-            var document = report.document
-            if let url { document.sourceURL = url }
-            try await library.save(
-                RecipeExtractor.Report(
-                    source: report.source, document: document))
+            try await library.save(document)
             stage = .done(document)
         } catch {
             stage = .failed("Import failed: \(error.localizedDescription)")

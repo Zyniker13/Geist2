@@ -7,13 +7,13 @@ import SwiftUI
 /// DocumentChanges on the SyncPort (decision 0005).
 @MainActor
 final class LibraryModel: ObservableObject {
-    /// The library directory, named for the app and stable across
-    /// launches. Tests override it. Documents (not Application Support)
-    /// because Application Support writes have hit simulator EIO on
-    /// this shared host.
-    static let defaultRoot = FileManager.default.urls(
-        for: .documentDirectory, in: .userDomainMask
-    )[0].appendingPathComponent("Library", isDirectory: true)
+    /// The library directory the app reads: the App Group container
+    /// when the group exists (so share extensions write into the same
+    /// library), else the app sandbox's Documents/Library. Tests pass
+    /// their own root. Documents (not Application Support) because
+    /// Application Support writes have hit simulator EIO on this
+    /// shared host.
+    static let defaultRoot = SharedLibrary.root
 
     let store: LibraryStore
     let photos: PhotoStore
@@ -55,10 +55,10 @@ final class LibraryModel: ObservableObject {
 
     /// Saves an extracted recipe into the library and refreshes.
     @discardableResult
-    func save(_ report: RecipeExtractor.Report) async throws -> RecipeDocument {
-        try await store.write(report.document)
+    func save(_ document: RecipeDocument) async throws -> RecipeDocument {
+        try await store.write(document)
         await refresh()
-        return report.document
+        return document
     }
 
     /// Deletes a recipe (soft; Recently Deleted empties it later).
