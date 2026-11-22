@@ -11,8 +11,10 @@ SWIFT_IMAGE="${SWIFT_IMAGE:-swift:6.4.2}"
 
 if command -v docker >/dev/null 2>&1 && docker ps >/dev/null 2>&1; then
     echo "==> building and testing in the swift:6 container"
+    # The container has no sqlite3 headers; GRDB needs them. CI installs
+    # libsqlite3-dev the same way (scripts/check.sh expects this to match).
     docker run --rm -v "$PWD:/workspace" -w /workspace "$SWIFT_IMAGE" \
-        bash -c 'swift test 2>&1 | tail -20'
+        bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends libsqlite3-dev >/dev/null && swift test 2>&1 | tail -20'
     echo "test-linux OK"
     exit 0
 fi

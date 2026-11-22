@@ -68,9 +68,20 @@ public struct UnitCatalog: Sendable {
     }
 
     /// Looks up a unit by its identifier or one of its known aliases.
+    ///
+    /// Matching is case-sensitive for aliases that are not all-lowercase
+    /// ("T" is a tablespoon, "t" is not; "g" is a gram either way), then
+    /// falls back to a case-insensitive match.
     public func definition(matching identifier: String) -> UnitDefinition? {
-        let lowered = normalized(identifier)
+        let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
         let byId = definitionsById
+        if let exact = byId[trimmed] {
+            return exact
+        }
+        if byId.values.contains(where: { $0.aliases.contains(trimmed) }) {
+            return byId.values.first { $0.aliases.contains(trimmed) }
+        }
+        let lowered = trimmed.lowercased()
         if let exact = byId[lowered] {
             return exact
         }
@@ -140,7 +151,12 @@ public struct UnitCatalog: Sendable {
                 id: "oz",
                 dimension: .volume,
                 perCanonical: oz,
-                aliases: ["fluid ounce", "fluid ounces", "fl oz", "us fl oz"],
+                aliases: [
+                    "fluid ounce", "fluid ounces", "fl oz", "us fl oz",
+                    // Bare spellings resolve here first; the ingredient
+                    // parser re-dimensions them to weight (decision 0007).
+                    "oz", "ozs", "ounce", "ounces",
+                ],
                 summary:
                     "1 US fluid ounce = 29.5735295625 ml exactly "
                     + "(231 cu in per gallon, 128 fl oz per gallon, 1 in = 2.54 cm)."
@@ -149,7 +165,7 @@ public struct UnitCatalog: Sendable {
                 id: "tsp",
                 dimension: .volume,
                 perCanonical: tsp,
-                aliases: ["teaspoon", "teaspoons", "t.", "tsps"],
+                aliases: ["teaspoon", "teaspoons", "t.", "tsps", "tspns"],
                 summary:
                     "1 US teaspoon = 4.928921595 ml exactly (1/6 US fluid ounce)."
             ),
