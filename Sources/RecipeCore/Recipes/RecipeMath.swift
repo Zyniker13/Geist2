@@ -164,10 +164,13 @@ public enum RecipeMath {
             // Recipes write amounts in more forms than the renderer
             // emits ("2 tbsp", "2 tablespoons", "2 T"), so the match
             // is on the number and the unit name in any casing, not
-            // on one rendering.
+            // on one rendering. The longest form is replaced first so
+            // the identifier pattern ("2 cup") cannot slice the plural
+            // alias ("2 cups") into "4 cupss".
             let patterns = numberUnitPatterns(
                 quantity: quantity, unitID: unitID, catalog: catalog)
-            for pattern in patterns where result.contains(pattern) {
+            for pattern in patterns.sorted(by: { $0.count > $1.count })
+            where result.contains(pattern) {
                 result = result.replacingOccurrences(of: pattern, with: scaledText)
             }
         }
