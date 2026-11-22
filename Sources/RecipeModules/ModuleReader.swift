@@ -1,4 +1,5 @@
 import Foundation
+import RecipeZip
 
 /// Reads a module archive: the fixed layout of decision 0005, the manifest's
 /// required shape, the schema file's agreement with the manifest, and the

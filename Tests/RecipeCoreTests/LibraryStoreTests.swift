@@ -31,6 +31,42 @@ struct LibraryStoreTests {
         #expect(loaded.modifiedAt == 1_000)
     }
 
+    @Test func libraryExportImportRoundTripsByteForByte() async throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = LibraryStore(root: root, clock: fixedClock())
+        var recipe = RecipeDocument(id: "r1", title: "Soup", createdAt: 1, modifiedAt: 1)
+        recipe.ingredientSections = [
+            IngredientSection(name: "", lines: [IngredientLine(item: "onion")])
+        ]
+        try await store.write(recipe)
+        var plan = PlanDocument(id: "p1", createdAt: 1, modifiedAt: 1)
+        plan.entries = [PlanEntry(day: "monday", meal: "dinner", recipeID: "r1", servings: 2)]
+        try await store.write(plan)
+        let hash = try await store.storePhoto(Data("a photo".utf8))
+        _ = hash
+
+        let archive = root.appendingPathComponent("export.zip")
+        try await store.exportLibrary(to: archive)
+
+        // A fresh root imports the same bytes.
+        let restored = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: restored) }
+        let store2 = LibraryStore(root: restored, clock: fixedClock())
+        try await store2.importLibrary(from: archive)
+        let recipe2 = try await store2.loadRecipe(id: "r1")
+        #expect(recipe2.title == "Soup")
+        #expect(recipe2.ingredientSections == recipe.ingredientSections)
+        let plan2 = try await store2.loadPlan(id: "p1")
+        #expect(plan2.entries == plan.entries)
+        // The JSON files on disk are byte-identical.
+        let original = try Data(contentsOf: root.appendingPathComponent("recipes/r1.json"))
+        let copy = try Data(contentsOf: restored.appendingPathComponent("recipes/r1.json"))
+        #expect(original == copy)
+        let photoBytes = await store2.photoData(for: hash)
+        #expect(photoBytes == Data("a photo".utf8))
+    }
+
     @Test func everyWriteEmitsAChangeThroughSyncPort() async throws {
         let root = try tempRoot()
         defer { try? FileManager.default.removeItem(at: root) }

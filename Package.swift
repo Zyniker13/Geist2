@@ -45,12 +45,14 @@ let package = Package(
             .product(name: "GRDB", package: "GRDB.swift"),
             .product(name: "Crypto", package: "swift-crypto"),
             .product(name: "Collections", package: "swift-collections"),
+            "RecipeZip",
         ]),
         .target(name: "RecipeImport", dependencies: ["RecipeCore"]),
+        .target(name: "RecipeZip", dependencies: ["CZlib"]),
         .target(name: "RecipeModules", dependencies: [
             "RecipeCore",
+            "RecipeZip",
             .product(name: "Crypto", package: "swift-crypto"),
-            "CZlib",
         ], resources: [
             .copy("Resources/Schemas")
         ]),
