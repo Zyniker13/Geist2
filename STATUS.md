@@ -1,23 +1,25 @@
 # Status
 
-- **Current milestone:** M1 Recipe model + library — nearly done.
+- **Current milestone:** M1 Recipe model + library — DONE pending CI.
   Documents (recipe/plan/list/pantry, schema v1, tested migrations),
   SyncPort wired from the first commit (decision 0005), library store
   with atomic writes + SHA-256 photo dedup + soft delete, GRDB FTS5
-  index with filters, duplicate detection and merge. M1.3/M1.4 tests
-  green on host (29 tests in 8 suites).
-- **Last done:** M1.3 `RecipeIndex` (GRDB, FTS5 external-content table,
-  prefix search, tag/category/cuisine/time/rating filters) and M1.4
-  `Deduplication` (URL/title normalization, Jaccard ingredient
-  similarity, field-preserving merge) written and tested; lint clean.
-- **Next step:** run `check.sh` end-to-end, commit M1.3/M1.4, then M1.5
-  (index hooks into the store: rebuild after every write) if the
-  roadmap splits it that way, else close M1 and start M2 (ingredient
-  parser, unit conversion, 500-line corpus).
+  index, duplicate detection and merge, whole-library ZIP export and
+  import, and the scale proof: 5,000 recipes, searches under 50 ms
+  (`LibraryScaleTests`, 31 tests in 9 suites green on host).
+- **Last done:** `4dff953` — `RecipeZip` target extracted from
+  `RecipeModules` (decision 0006, recorded per the upstream note),
+  library export/import round-trip byte for byte, 5,000-recipe
+  generated library searches in single-digit ms.
+- **Next step:** confirm CI green on `4dff953`, then start M2.1 (the
+  ingredient line parser) with the M2.4 corpus alongside.
 - **Blocked on:** nothing.
 
 ## Log
 
+- 2026-11-22: M1 closed pending CI — `RecipeZip` split (decision 0006),
+  export/import byte-for-byte round-trip, 5,000-recipe scale test green
+  (31 tests in 9 suites).
 - 2026-11-22: M1.3 + M1.4 — `RecipeIndex` (GRDB FTS5, filters) and
   `Deduplication` (dedup keys, similarity, merge); 29 tests in 8 suites
   green on host; lint clean.
