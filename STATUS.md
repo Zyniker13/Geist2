@@ -1,32 +1,32 @@
 # Status
 
-- **Current milestone:** M2 Ingredients, units, scaling — nearly done.
-  M2.1 parser (committed `069ae9d`) with the M2.4 517-line exact corpus
-  (100% exact, gate 98%); M2.2 conversion layer done locally: per-line
-  metric/US conversion (`RecipeConversion`), grams-per-ml density table
-  (`IngredientDensity`), temperature parsing/conversion
-  (`Temperature`); M2.3 recipe-level scaling done locally
-  (`RecipeMath.factor/scaledLine/scaledSections/stepText`,
-  `kitchenFraction` public); `recipe-cli scale` renders the demo soup
-  scaled 0.5x/2x/3x with step text rescaled ("Heat 4 T olive oil" at 2x).
-  72 tests in 15 suites green on host; Linux container green (72/15);
-  lint strict-clean; decision 0008 records the RecipeMath/Jigger changes.
-- **Last done:** M2.2/M2.3 tests written and green, two conversion bugs
-  fixed on the way (US conversion branches set the new `unitID`;
-  density factors parse from strings because Decimal float literals
-  carry a Double's binary tail), `stepText` verified in the CLI demo.
-- **Next step:** check.sh all (running, proc_d0823222ff86) → commit
-  M2.2/M2.3 with decision 0008 and refreshed STATUS → CI check → M3
-  (import: JSON-LD/Microdata/heuristic extraction, share extensions,
-  40 fixtures).
+- **Current milestone:** M2 Ingredients, units, scaling — DONE (CI
+  green on `b44a59b`). Parser with the 517-line exact corpus (100%,
+  gate 98%); per-line metric/US conversion (`RecipeConversion`), density
+  table (`IngredientDensity`), temperature parsing/conversion
+  (`Temperature`); recipe-level scaling (`factor/scaledLine/scaledSections/
+  stepText`); `recipe-cli scale` shows the demo soup at 0.5x/2x/3x with
+  rescaled step text. 72 tests in 15 suites green on host, Linux
+  container, and CI; decisions 0007 (bare ounce) and 0008 (scaling and
+  conversion) recorded.
+- **Last done:** `b44a59b` — step-text replacement fixed to
+  longest-form-first (the id pattern "2 cup" sliced the plural alias
+  "2 cups" into "4 cupss" on an unlucky Set order; only reproducible on
+  Linux CI), CI green.
+- **Next step:** M3 Import — JSON-LD/Microdata/heuristic extraction
+  into `RecipeImport`, the app import surfaces, share extensions, and
+  the 40-fixture corpus.
 - **Blocked on:** nothing.
 
 ## Log
 
-- 2026-11-22: M2.2 + M2.3 done locally — temperature/density/conversion
-  and recipe-level scaling with tests (72 in 15 suites, Linux green);
-  `stepText` matches unit aliases so "2 tbsp" rescales in step text;
-  decision 0008 written.
+- 2026-11-22: M2 CLOSED — CI green (`b44a59b`); corpus 517/517, 72
+  tests in 15 suites across host/Linux/CI; `recipe-cli scale` 0.5x/2x/3x
+  verified with step text.
+- 2026-11-22: M2.2 + M2.3 committed `5c445d2` — temperature, density,
+  conversion, recipe-level scaling with tests; decision 0008; two
+  conversion bugs fixed (US branches had not set the new unitID; density
+  factors parse from strings, Decimal float literals carry Double tails).
 - 2026-11-22: M2.1 + M2.4 committed `069ae9d` — ingredient line parser,
   517-line exact corpus, bare-ounce decision (0007), Linux libsqlite3-dev
   install fix in test-linux.sh.
