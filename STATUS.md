@@ -6,12 +6,30 @@
   photo tabs, isolated browser fallback for JS pages, Vision OCR,
   library + detail views; UI test drives text import end to end,
   screenshots in docs/look-dev/.
-- **Last done:** `74bc133` — M3.2 app surfaces; check.sh green; pushed.
-- **Next step:** M3.3 share extensions (iOS + macOS), then M3.4 the
+  M3.3 share extensions code-complete (`897e897`): iOS + macOS appex
+  targets, ShareHandler, App Group `group.com.bristleconeit.geist2`,
+  SharedLibrary.root with Documents fallback (decision 0010).
+  Proven on simulator: recipe written into the group container by the
+  host is listed by the app (docs/look-dev/).
+- **Last done:** `897e897` — share extensions; package tests 72 green,
+  macOS app tests green (after freeing 31 GB: disk was full, Vision
+  OCR failed to extract its model cache), iOS test run in flight.
+- **Next step:** share-sheet end-to-end from Safari, then M3.4 the
   40-fixture corpus.
-- **Blocked on:** nothing.
+- **Blocked on:** nothing. (macOS extension embedding may block on a
+  signing identity — see decision 0010; not needed yet.)
 
 ## Log
+
+- 2026-11-22: M3.3 share extensions committed `897e897` — per-platform
+  app targets (XcodeGen has no per-platform dependency filter), static
+  extension Info.plist (GENERATE_INFOPLIST_FILE NO — the generated one
+  had been dropping NSExtension entirely), entitlements files, and
+  SharedLibrary as the one extraction+root path for app and extension.
+  Simulator proof: host-written recipe in the App Group container
+  appears in the app list. Pitfall: the group container UUID regenerates
+  on reinstall — seed via the current `simctl get_app_container groups`
+  path, and note the root is <group>/Library (not Documents).
 
 - 2026-11-22: M3.2 app surfaces committed `74bc133` — import sheet
   (text/link/photo), browser fallback, Vision OCR, library + detail
