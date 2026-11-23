@@ -31,6 +31,9 @@ xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-macOS \
     test -quiet
 
 echo "==> app + unit tests, iOS simulator ($DEVICE)"
+# xcodebuild test boots the simulator and leaves it running; always shut
+# it down on exit, even if it was already booted.
+trap 'xcrun simctl shutdown "$DEVICE" 2>/dev/null || true' EXIT INT TERM
 # The App Group entitlement is iOS-only: macOS ad-hoc signing rejects
 # it, so project.yml leaves it out and the iOS build injects it here
 # (decision 0010).
@@ -43,7 +46,6 @@ if [ "${1:-}" = "--smoke" ]; then
     echo "==> smoke: boot, install, launch, screenshot"
     if ! xcrun simctl list devices booted | grep -q "$DEVICE"; then
         xcrun simctl boot "$DEVICE"
-        BOOTED=1
     fi
     APP_PATH="$(find "$SIM_DERIVED/Build/Products" -maxdepth 3 -name 'RecipeApp.app' -path '*iphonesimulator*' | head -n 1 || true)"
     if [ -z "$APP_PATH" ]; then
@@ -55,9 +57,6 @@ if [ "${1:-}" = "--smoke" ]; then
     sleep 3
     mkdir -p docs/look-dev
     xcrun simctl io "$DEVICE" screenshot "docs/look-dev/m0-empty-library.png"
-    if [ "${BOOTED:-0}" = "1" ]; then
-        xcrun simctl shutdown "$DEVICE"
-    fi
     echo "smoke screenshot: docs/look-dev/m0-empty-library.png"
 fi
 

@@ -1,9 +1,9 @@
 #!/bin/sh
 # safari-e2e.sh — proves the share extension end to end from Safari on
-# the simulator: serves a recipe page on localhost, boots the bot's own
-# simulator, installs app + appex, runs the Safari share UI test, then
-# inspects the App Group container for the written recipe. Screenshots
-# land in docs/look-dev/.
+# the simulator: boots the bot's own simulator, installs app + appex,
+# runs the Safari share UI test (the test serves its own localhost
+# page), then inspects the App Group container for the written recipe.
+# Screenshots land in docs/look-dev/.
 #
 # Run through ~/.hermes/bin/sim-lock. Not part of check.sh; a slow,
 # interactive proof run on demand.
@@ -12,7 +12,6 @@ cd "$(dirname "$0")/.."
 
 DEVICE="zGeist2_bot-iPhone-17"
 DERIVED="$(pwd)/.build/App-E2E"
-PORT=8123
 GROUP_LOG="$(pwd)/.build/e2e-group.log"
 
 # This machine needs the full Xcode developer directory for xcodebuild,
@@ -21,16 +20,18 @@ XCODE_APP="$(ls -d /Applications/Xcode*.app | head -n 1)"
 export DEVELOPER_DIR="$XCODE_APP/Contents/Developer"
 
 echo "==> build app + appex + UI tests (iOS)"
-xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
+xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-E2E \
     -destination "platform=iOS Simulator,name=$DEVICE" \
     -derivedDataPath "$DERIVED" \
     -skipPackagePluginValidation -skipMacroValidation \
     build-for-testing -quiet || exit 1
 
 echo "==> boot + install"
+# Always shut the simulator down on exit, even if it was already booted:
+# a device left booted keeps its system processes running indefinitely.
+trap 'xcrun simctl shutdown "$DEVICE" 2>/dev/null || true' EXIT INT TERM
 if ! xcrun simctl list devices booted | grep -q "$DEVICE"; then
     xcrun simctl boot "$DEVICE"
-    BOOTED=1
 fi
 APP_PATH="$(find "$DERIVED/Build/Products" -maxdepth 3 -name 'RecipeApp.app' -path '*iphonesimulator*' | head -n 1)"
 APPX_PATH="$(find "$DERIVED/Build/Products" -maxdepth 3 -name '*.appex' -path '*iphonesimulator*' | head -n 1)"
@@ -44,16 +45,9 @@ if [ ! -d "$APP_PATH/PlugIns" ]; then
     exit 1
 fi
 
-echo "==> serve $PORT"
-mkdir -p .build/e2e-root
-cp docs/e2e/e2e-recipe.html .build/e2e-root/
-python3 -m http.server "$PORT" --bind 127.0.0.1 --directory .build/e2e-root >/dev/null 2>&1 &
-SERVER_PID=$!
-trap 'kill $SERVER_PID 2>/dev/null; [ "${BOOTED:-0}" = 1 ] && xcrun simctl shutdown "$DEVICE"; true' EXIT INT TERM
-
-echo "==> UI test: Safari share"
-# One test selected by name keeps this run tight.
-xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
+# The UI test serves its own page on 8123 (TinyHTTPServer inside the
+# runner), so the script must not hold the port.
+xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-E2E \
     -destination "platform=iOS Simulator,name=$DEVICE" \
     -derivedDataPath "$DERIVED" \
     -skipPackagePluginValidation -skipMacroValidation \
@@ -62,7 +56,8 @@ xcodebuild -project App/RecipeApp.xcodeproj -scheme RecipeApp-iOS \
 
 echo "==> prove the group container"
 # `get_app_container <device> <group-id> groups` prints "groupID<TAB>path";
-# the path is the second field. Needs the device booted.
+# the path is the second field. Needs the device booted; the exit trap
+# shuts it down again.
 xcrun simctl boot "$DEVICE" 2>/dev/null || true
 if xcrun simctl get_app_container "$DEVICE" com.bristleconeit.geist2 groups >"$GROUP_LOG" 2>&1; then
     GROUP_BASE="$(awk 'NR==1{print $2}' "$GROUP_LOG")"

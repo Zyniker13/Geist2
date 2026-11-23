@@ -68,6 +68,18 @@ targets:
       - path: RecipeApp/SharedLibrary.swift
     info:
       path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Recipe app
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        # Declared here so `xcodegen generate` writes a complete plist
+        # every time; hand edits outside this block were being lost on
+        # regeneration, which silently broke the extension.
+        NSExtension:
+          NSExtensionAttributes:
+            NSExtensionActivationRule: SUBQUERY (extensionItems, $extensionItem, SUBQUERY ($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.html").@count > 0).@count > 0
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareHandler
     dependencies:
       - package: RecipeKit
         products:
@@ -90,6 +102,15 @@ targets:
       - path: RecipeApp/SharedLibrary.swift
     info:
       path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Recipe app
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSExtension:
+          NSExtensionAttributes:
+            NSExtensionActivationRule: SUBQUERY (extensionItems, $extensionItem, SUBQUERY ($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text" OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.html").@count > 0).@count > 0
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareHandler
     dependencies:
       - package: RecipeKit
         products:
@@ -149,7 +170,17 @@ schemes:
         RecipeAppUITests: [test]
     test:
       targets:
+        # Unit tests only: the Safari UI test drives Safari and the
+        # share sheet (slow, machine specific) and belongs to the
+        # RecipeApp-E2E scheme below, which safari-e2e.sh runs.
         - RecipeAppTests_iOS
+  RecipeApp-E2E:
+    build:
+      targets:
+        RecipeApp_iOS: all
+        RecipeAppUITests: [test]
+    test:
+      targets:
         - RecipeAppUITests
   RecipeApp-macOS:
     build:
