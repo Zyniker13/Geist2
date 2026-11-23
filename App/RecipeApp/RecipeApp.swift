@@ -8,9 +8,24 @@ struct RecipeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            LibraryView()
-                .environmentObject(library)
-                .environmentObject(importer)
+            #if os(iOS)
+                NavigationStack {
+                    LibraryView()
+                        .navigationDestination(
+                            for: String.self,
+                            destination: { recipeID in
+                                RecipeDetailLoader(recipeID: recipeID)
+                            })
+                }
+            #else
+                NavigationSplitView {
+                    LibraryView()
+                } detail: {
+                    RecipeDetailLoader(recipeID: library.selection ?? "")
+                }
+            #endif
         }
+        .environmentObject(library)
+        .environmentObject(importer)
     }
 }

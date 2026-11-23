@@ -59,13 +59,13 @@ struct RecipeDetailView: View {
                     Label("\(recipe.yieldAmount!) \(recipe.yieldUnit)", systemImage: "person.2")
                 }
                 if let prep = recipe.prepTime {
-                    Label(prep.shortLabel, systemImage: "knife")
+                    Label(prep.display, systemImage: "knife")
                 }
                 if let cook = recipe.cookTime {
-                    Label(cook.shortLabel, systemImage: "flame")
+                    Label(cook.display, systemImage: "flame")
                 }
                 if let total = recipe.totalTime {
-                    Label(total.shortLabel, systemImage: "clock")
+                    Label(total.display, systemImage: "clock")
                 }
             }
             .font(.subheadline)

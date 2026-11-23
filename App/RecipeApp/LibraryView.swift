@@ -1,49 +1,228 @@
 import RecipeCore
 import SwiftUI
 
-/// The library: the recipe list, the import sheet, and navigation into
-/// a recipe.
+/// The library screen: search, filters, sort, and the recipe list.
+/// Lives inside a NavigationSplitView on iPad and Mac (RecipeApp),
+/// and a plain NavigationStack on iPhone.
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryModel
     @State private var showingImport = false
-    @State private var pendingLink = ""
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if library.recipes.isEmpty {
-                    ContentUnavailableView(
-                        "Your recipe library",
-                        systemImage: "book.closed",
-                        description: Text(
-                            "Recipes you add or import will appear here."))
-                } else {
-                    List(library.recipes) { recipe in
-                        NavigationLink(value: recipe.id) {
-                            RecipeRow(recipe: recipe)
+        List {
+            LibraryControls()
+            ForEach(library.visibleRecipes) { recipe in
+                NavigationLink(
+                    value: recipe.id,
+                    label: { RecipeRow(recipe: recipe) }
+                )
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        #if os(macOS)
+                            library.selection = recipe.id
+                        #endif
+                    })
+            }
+            if !library.visibleRecipes.isEmpty
+                && library.visibleRecipes.count
+                    < library.recipes.count
+            {
+                EmptyListFooter(
+                    visible: library.visibleRecipes.count,
+                    total: library.recipes.count)
+            }
+        }
+        .listStyle(.plain)
+        .searchable(
+            text: Binding(
+                get: { library.query.text },
+                set: { library.query.text = $0 }),
+            placement: searchablePlacement,
+            prompt: "Search title, ingredient, tag"
+        )
+        .autocorrectionDisabled()
+        .navigationTitle("Recipes")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingImport = true
+                } label: {
+                    Label("Import", systemImage: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingImport) {
+            ImportView()
+        }
+        .task { await library.refresh() }
+    }
+
+    /// iOS keeps the search field always visible in a nav bar drawer;
+    /// macOS has no drawer and uses the toolbar field.
+    private var searchablePlacement: SearchFieldPlacement {
+        #if os(macOS)
+            return .toolbar
+        #else
+            return .navigationBarDrawer(displayMode: .always)
+        #endif
+    }
+}
+
+/// Search/filter state lives in the query; this row keeps the controls
+/// out of the list rows.
+private struct LibraryControls: View {
+    @EnvironmentObject private var library: LibraryModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            SortMenu()
+            FilterMenu()
+            Spacer()
+        }
+        .padding(.vertical, 2)
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+}
+
+/// The sort picker: segmented control over the core sort enum.
+struct SortMenu: View {
+    @EnvironmentObject private var library: LibraryModel
+
+    var body: some View {
+        Picker(
+            "Sort",
+            selection: Binding(
+                get: { library.query.sort },
+                set: { library.query.sort = $0 })
+        ) {
+            ForEach(LibraryQuery.Sort.allCases) { sort in
+                Text(sort.label).tag(sort)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .controlSize(.small)
+        .fixedSize()
+        .accessibilityLabel("Sort recipes")
+    }
+}
+
+/// The filter menu: tag, category, cuisine, max time, min rating.
+/// Only offers values the library actually has.
+struct FilterMenu: View {
+    @EnvironmentObject private var library: LibraryModel
+
+    var body: some View {
+        Menu {
+            if !library.allTags.isEmpty {
+                Section("Tag") {
+                    ForEach(library.allTags, id: \.self) { tag in
+                        Button {
+                            library.query.tag = library.query.tag == tag ? nil : tag
+                        } label: {
+                            if library.query.tag == tag {
+                                Label(tag, systemImage: "checkmark")
+                            } else {
+                                Text(tag)
+                            }
                         }
                     }
-                    .listStyle(.plain)
                 }
             }
-            .navigationTitle("Recipes")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingImport = true
-                    } label: {
-                        Label("Import", systemImage: "plus")
+            if !library.allCategories.isEmpty {
+                Section("Category") {
+                    ForEach(library.allCategories, id: \.self) { category in
+                        Button {
+                            library.query.category =
+                                library.query.category == category ? nil : category
+                        } label: {
+                            if library.query.category == category {
+                                Label(category, systemImage: "checkmark")
+                            } else {
+                                Text(category)
+                            }
+                        }
                     }
                 }
             }
-            .navigationDestination(for: String.self) { id in
-                RecipeDetailLoader(recipeID: id)
+            if !library.allCuisines.isEmpty {
+                Section("Cuisine") {
+                    ForEach(library.allCuisines, id: \.self) { cuisine in
+                        Button {
+                            library.query.cuisine =
+                                library.query.cuisine == cuisine ? nil : cuisine
+                        } label: {
+                            if library.query.cuisine == cuisine {
+                                Label(cuisine, systemImage: "checkmark")
+                            } else {
+                                Text(cuisine)
+                            }
+                        }
+                    }
+                }
             }
-            .sheet(isPresented: $showingImport) {
-                ImportView()
+            Section("Max time") {
+                ForEach(
+                    [
+                        (30, "30 minutes"), (60, "1 hour"), (120, "2 hours"),
+                    ], id: \.0
+                ) { seconds, label in
+                    Button {
+                        library.query.maxTotalSeconds =
+                            library.query.maxTotalSeconds == seconds ? nil : seconds
+                    } label: {
+                        if library.query.maxTotalSeconds == seconds {
+                            Label(label, systemImage: "checkmark")
+                        } else {
+                            Text(label)
+                        }
+                    }
+                }
             }
-            .task { await library.refresh() }
+            Section("Rating") {
+                ForEach(3...4, id: \.self) { stars in
+                    Button {
+                        library.query.minRating =
+                            library.query.minRating == stars ? nil : stars
+                    } label: {
+                        if library.query.minRating == stars {
+                            Label("\(stars) stars or more", systemImage: "checkmark")
+                        } else {
+                            Text("\(stars) stars or more")
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button(role: .destructive) {
+                library.query = LibraryQuery(sort: library.query.sort)
+            } label: {
+                Text("Clear filters")
+            }
+            .disabled(library.query.filters.isEmpty)
+        } label: {
+            Image(
+                systemName: library.query.filters.isEmpty
+                    ? "line.3.horizontal.decrease.circle"
+                    : "line.3.horizontal.decrease.circle.fill")
         }
+        .accessibilityLabel("Filter recipes")
+    }
+}
+
+/// "Showing 3 of 12" footer under a narrowed list.
+private struct EmptyListFooter: View {
+    let visible: Int
+    let total: Int
+
+    var body: some View {
+        Text("Showing \(visible) of \(total)")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 
@@ -60,25 +239,23 @@ struct RecipeRow: View {
                     Text("\(recipe.yieldAmount!) \(recipe.yieldUnit)")
                 }
                 if let total = recipe.totalTime {
-                    Text(total.shortLabel)
+                    Text(total.display)
+                }
+                ForEach(recipe.tags.prefix(2), id: \.self) { tag in
+                    Text(tag)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(
+                            Capsule().fill(Color.accentColor.opacity(0.12))
+                        )
+                        .foregroundStyle(.secondary)
                 }
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
-    }
-}
-
-extension Duration {
-    /// "1 h 30 m" for list rows.
-    var shortLabel: String {
-        let total = seconds / 60
-        let hours = total / 60
-        let minutes = total % 60
-        if hours > 0 && minutes > 0 { return "\(hours) h \(minutes) m" }
-        if hours > 0 { return "\(hours) h" }
-        return "\(minutes) m"
     }
 }
 

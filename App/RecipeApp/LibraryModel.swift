@@ -20,6 +20,34 @@ final class LibraryModel: ObservableObject {
 
     @Published private(set) var recipes: [RecipeDocument] = []
 
+    /// The active library query. `visibleRecipes` applies it; the raw
+    /// list stays untouched so facets always cover the whole library.
+    @Published var query = LibraryQuery()
+
+    /// The recipes the library screen shows: the query applied.
+    var visibleRecipes: [RecipeDocument] {
+        LibraryQuerying.apply(query, to: recipes)
+    }
+
+    /// Every tag in the library, alphabetically; drives the filter menu.
+    var allTags: [String] {
+        Set(recipes.flatMap(\.tags)).sorted()
+    }
+
+    /// Every category in the library, alphabetically.
+    var allCategories: [String] {
+        Set(recipes.flatMap(\.categories)).sorted()
+    }
+
+    /// Every cuisine in the library, alphabetically.
+    var allCuisines: [String] {
+        Set(recipes.compactMap(\.cuisine)).sorted()
+    }
+
+    /// The recipe the Mac's split-view detail pane shows; nil means the
+    /// placeholder. iPhone uses a navigation stack instead.
+    @Published var selection: String?
+
     /// Creates the model over a library root. Tests pass their own
     /// directory and fixed clock values.
     init(root: URL? = nil, clock: LibraryClock = .live) {
