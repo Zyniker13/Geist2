@@ -12,6 +12,8 @@ enum HeuristicExtractor {
         var text: String
         /// 0-based position among the page's text lines.
         var position: Int
+        /// The element's class attribute, when it has one.
+        var classAttr: String?
     }
 
     /// The pieces a page's visible text can be cut into.
@@ -30,12 +32,12 @@ enum HeuristicExtractor {
 
     /// Words a heading must contain to be treated as a list heading.
     private static let ingredientHeadings: Set<String> = [
-        "ingredient", "ingredients", "what you need", "you'll need",
+        "ingredient", "ingredients", "ingrédients", "what you need", "you'll need",
         "you will need", "shopping list", "materials",
     ]
     private static let stepHeadings: Set<String> = [
         "instruction", "instructions", "direction", "directions",
-        "method", "preparation", "steps", "how to make", "how to cook",
+        "method", "preparation", "préparation", "steps", "how to make", "how to cook",
         "procedure", "assembly",
     ]
     private static let timeHeadings: [String: String] = [
@@ -95,7 +97,9 @@ enum HeuristicExtractor {
 
     private static func scan(_ html: String) -> Candidates {
         let lines = visibleLines(html)
-        return process(lines: lines.map { ($0.text, $0.position) }, imageUrls: imageUrls(html))
+        return process(
+            lines: lines.map { ($0.text, $0.position, $0.classAttr) },
+            imageUrls: imageUrls(html))
     }
 
     private static func scanText(_ text: String) -> Candidates {
@@ -104,13 +108,13 @@ enum HeuristicExtractor {
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        return process(lines: lines.map { ($0, -1) }, imageUrls: [])
+        return process(lines: lines.map { ($0, -1, nil) }, imageUrls: [])
     }
 
     /// The shared line-classification pass over the page's or paste's
     /// visible lines.
     private static func process(
-        lines: [(text: String, position: Int)], imageUrls: [String]
+        lines: [(text: String, position: Int, classAttr: String?)], imageUrls: [String]
     ) -> Candidates {
         var candidates = Candidates(
             title: nil, summary: nil, ingredients: [], steps: [],
@@ -124,10 +128,39 @@ enum HeuristicExtractor {
         var sawStepHeading = false
 
         for line in lines {
-            let text = line.text
+            var text = sanitize(line.text)
             let lowered = text.lowercased()
+            let zone = classZone(of: line.classAttr)
 
-            // An inline list: "Ingredients: 1 box pasta, 2 cups
+            if mode == .preamble, handleMetaSegments(text, into: &candidates) { continue }
+
+            if let zone {
+                switch zone {
+                case .yield:
+                    if let y = yieldDeclaration(lowered, original: text) {
+                        candidates.yield = y
+                        continue
+                    }
+                case .ingredients:
+                    if mode == .preamble {
+                        mode = .ingredients
+                        sawIngredientHeading = true
+                    }
+                case .steps:
+                    if mode != .steps {
+                        flushSection(
+                            into: &candidates, name: &currentSection, steps: &sectionSteps)
+                        mode = .steps
+                        sawStepHeading = true
+                    }
+                }
+            }
+
+            // The stand-in line a classed container emits has no
+            // content of its own; real classed lines keep flowing.
+            if let marked = zone, text == zoneMarker(for: marked) { continue }
+
+
             // cheese" opens the ingredient zone and carries its list
             // on the same line.
             if lowered.hasPrefix("ingredient"), lowered.contains(":"),
@@ -147,7 +180,7 @@ enum HeuristicExtractor {
                 continue
             }
 
-            if let heading = headingKind(lowered) {
+            if zone == nil, let heading = headingKind(lowered) {
                 flushSection(into: &candidates, name: &currentSection, steps: &sectionSteps)
                 var handled = true
                 switch heading {
@@ -448,6 +481,142 @@ enum HeuristicExtractor {
         times[kind] = iso
     }
 
+    // MARK: Classed zones and meta lines
+
+    /// Recipe zones a page can mark with a CSS class.
+    private enum Zone { case ingredients, steps, yield }
+
+    private static let ingredientZoneTokens: Set<String> = [
+        "ingredients", "ing",
+    ]
+    private static let stepZoneTokens: Set<String> = [
+        "steps", "step", "directions", "direction",
+    ]
+    private static let yieldZoneTokens: Set<String> = [
+        "yield", "serves",
+    ]
+
+    /// The zone an element's class attribute marks, when any token in
+    /// it names one exactly.
+    private static func classZone(of classAttr: String?) -> Zone? {
+        guard let classAttr else { return nil }
+        for token in classAttr.split(separator: " ") {
+            let name = String(token).lowercased()
+            if ingredientZoneTokens.contains(name) { return .ingredients }
+            if stepZoneTokens.contains(name) { return .steps }
+            if yieldZoneTokens.contains(name) { return .yield }
+        }
+        return nil
+    }
+
+    /// A stand-in line emitted for a classed container that has no
+    /// text of its own, so its zone still opens before the children.
+    private static func zoneMarker(for zone: Zone) -> String {
+        switch zone {
+        case .ingredients: return "ingredients"
+        case .steps: return "directions"
+        case .yield: return "yield"
+        }
+    }
+
+    /// Normalizes one visible line: decoded inline markup and wrapping
+    /// whitespace removed, so fixture formatting never reaches the
+    /// parsers.
+    private static func sanitize(_ text: String) -> String {
+        RecipeAssembler.sanitize(text)
+    }
+
+    /// Labels a segment can carry for a duration, shorter than the
+    /// full "prep time" headings.
+    private static let shortTimeLabels: [String: String] = [
+        "prep": "prep", "active": "prep",
+        "cook": "cook", "cooking": "cook", "bake": "cook",
+        "chill": "cook", "rest": "cook",
+        "total": "total",
+    ]
+
+    /// Reads recipe fields out of a packed metadata line — "Serves 4 |
+    /// Prep: 20 minutes | Cook: 1 hour". Returns true when the line
+    /// was consumed, false when nothing in it matched, so ordinary
+    /// sentences keep flowing to the normal scan.
+    private static func handleMetaSegments(
+        _ text: String, into candidates: inout Candidates
+    ) -> Bool {
+        let lowered = text.lowercased()
+        guard lowered.count >= 20,
+            lowered.contains("|") || lowered.contains("·")
+                || lowered.contains("&middot;") || lowered.contains("; ")
+                || lowered.contains(". ") || lowered.contains(", ")
+        else { return false }
+
+        var produced = false
+        for segment in metaSegments(of: text) {
+            let seg = segment
+            let segLower = seg.lowercased()
+            if segLower.hasPrefix("recipe category:"), seg.count > 16 {
+                candidates.category = String(seg.dropFirst(16))
+                    .trimmingCharacters(in: .whitespaces)
+                produced = true
+                continue
+            }
+            if segLower.hasPrefix("category:"), seg.count > 9 {
+                candidates.category = String(seg.dropFirst(9))
+                    .trimmingCharacters(in: .whitespaces)
+                produced = true
+                continue
+            }
+            if segLower.hasPrefix("cuisine:"), seg.count > 8 {
+                candidates.cuisine = String(seg.dropFirst(8))
+                    .trimmingCharacters(in: .whitespaces)
+                produced = true
+                continue
+            }
+            // The label may carry a colon ("prep: 20 minutes") or not
+            // ("prep 15 minutes"); lookup is on the bare word, the
+            // slice on the word as written.
+            let firstWord = String(segLower.split(separator: " ").first ?? "")
+            let bare = firstWord.hasSuffix(":") ? String(firstWord.dropLast()) : firstWord
+            if let kind = shortTimeLabels[bare],
+                let iso = timeValue(in: segLower, after: firstWord)
+            {
+                storeTime(kind, iso, into: &candidates.times)
+                produced = true
+                continue
+            }
+            if let y = yieldDeclaration(segLower, original: seg), yieldOnly(segLower) {
+                candidates.yield = y
+                produced = true
+                continue
+            }
+            if let first = segLower.first, first.isNumber, !segLower.contains(":"),
+                let iso = timeValue(in: segLower, after: "")
+            {
+                // An unlabeled duration reads as cooking time; heuristic
+                // pages rarely separate prep from cook.
+                storeTime("cook", iso, into: &candidates.times)
+                produced = true
+                continue
+            }
+        }
+        return produced
+    }
+
+    /// Splits a metadata line on the separators pages use: pipes,
+    /// middots (raw or decoded), semicolons, sentences, commas.
+    private static func metaSegments(of text: String) -> [String] {
+        var pieces: [String] = [text]
+        for separator in ["|", "&middot;", "·", "; ", ". ", ", "] {
+            var next: [String] = []
+            for piece in pieces {
+                next.append(contentsOf: piece.components(separatedBy: separator))
+            }
+            pieces = next
+        }
+        return pieces
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t.")) }
+            .filter { !$0.isEmpty }
+    }
+
     // MARK: Lines and cleaning
 
     /// The page's visible text, one entry per non-empty line, with
@@ -481,11 +650,23 @@ enum HeuristicExtractor {
         if !skipSelf && element.tag == "script" || element.tag == "style" {
             return
         }
+        let classAttr = element.attribute("class")
         let direct = element.text
             .split(separator: "\n", omittingEmptySubsequences: true)
+        if direct.isEmpty, let zone = classZone(of: classAttr) {
+            // A classed container with no text of its own still opens
+            // its zone before the children that follow.
+            lines.append(
+                Line(
+                    text: zoneMarker(for: zone), position: lines.count,
+                    classAttr: classAttr))
+        }
         for part in direct {
             let trimmed = part.trimmingCharacters(in: .whitespaces)
-            if !trimmed.isEmpty { lines.append(Line(text: trimmed, position: lines.count)) }
+            if !trimmed.isEmpty {
+                lines.append(
+                    Line(text: trimmed, position: lines.count, classAttr: classAttr))
+            }
         }
         for child in element.children {
             collectLines(from: child, into: &lines, skipSelf: false)

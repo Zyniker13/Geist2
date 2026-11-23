@@ -4,13 +4,28 @@ import RecipeCore
 /// Converts an extracted recipe block into a RecipeDocument, with the
 /// M2 parser handling every ingredient and step-embedded amount.
 public enum RecipeAssembler {
+    /// Strips inline markup tags and wrapping whitespace from a
+    /// recipe field, so decoded HTML never reaches a document.
+    public static func sanitize(_ text: String) -> String {
+        var result = text
+        for tag in [
+            "<i>", "</i>", "<b>", "</b>", "<em>", "</em>",
+            "<strong>", "</strong>", "<span>", "</span>",
+            "<small>", "</small>", "<sup>", "</sup>", "<sub>", "</sub>",
+            "<u>", "</u>", "<code>", "</code>",
+        ] {
+            result = result.replacingOccurrences(of: tag, with: "")
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Builds a document from a JSON-LD recipe. Nil when the block has
     /// neither a title nor a single usable line.
     public static func document(
         from recipe: JSONLDRecipe, now epochSeconds: Int64, id: String
     ) -> RecipeDocument? {
-        let title = titleCase(recipe.name ?? "")
-        let ingredients = recipe.ingredients.map { IngredientParser.parse($0) }
+        let title = titleCase(sanitize(recipe.name ?? ""))
+        let ingredients = recipe.ingredients.map { IngredientParser.parse(sanitize($0)) }
         let sections = stepSections(recipe)
         guard !title.isEmpty || !ingredients.isEmpty || !sections.isEmpty else {
             return nil
@@ -44,13 +59,15 @@ public enum RecipeAssembler {
         for section in recipe.instructionSections {
             var steps: [Step] = []
             for text in section.steps {
-                steps.append(Step(text: text, timers: timedSteps(from: text)))
+                let clean = sanitize(text)
+                steps.append(Step(text: clean, timers: timedSteps(from: clean)))
             }
             sections.append(StepSection(name: section.name, steps: steps))
         }
         var bare: [Step] = []
         for text in recipe.instructions {
-            bare.append(Step(text: text, timers: timedSteps(from: text)))
+            let clean = sanitize(text)
+            bare.append(Step(text: clean, timers: timedSteps(from: clean)))
         }
         if !bare.isEmpty {
             sections.append(StepSection(name: "", steps: bare))

@@ -366,6 +366,11 @@ enum JSONLDExtractor {
         let entities = [
             ("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""),
             ("&#39;", "'"), ("&#x27;", "'"), ("&apos;", "'"), ("&amp;", "&"),
+            ("&frac12;", "½"), ("&frac13;", "⅓"), ("&frac23;", "⅔"),
+            ("&frac14;", "¼"), ("&frac34;", "¾"), ("&frac15;", "⅕"),
+            ("&frac25;", "⅖"), ("&frac35;", "⅗"), ("&frac45;", "⅘"),
+            ("&frac16;", "⅙"), ("&frac56;", "⅚"), ("&frac18;", "⅛"),
+            ("&frac38;", "⅜"), ("&frac58;", "⅝"), ("&frac78;", "⅞"),
         ]
         for (entity, character) in entities {
             result = result.replacingOccurrences(of: entity, with: character)

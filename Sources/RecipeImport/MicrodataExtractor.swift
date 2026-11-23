@@ -409,9 +409,17 @@ enum MicrodataExtractor {
                     recipe.author = first(recipe.author, authorName)
                 }
             case ("preptime", .text(let text)): recipe.prepTime = text
+            case ("preptime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.prepTime = iso }
             case ("cooktime", .text(let text)): recipe.cookTime = text
+            case ("cooktime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.cookTime = iso }
             case ("totaltime", .text(let text)): recipe.totalTime = text
+            case ("totaltime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.totalTime = iso }
             case ("performtime", .text(let text)): recipe.cookTime = text
+            case ("performtime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.cookTime = iso }
             case ("recipeingredient", .text(let text)) where !text.isEmpty:
                 ingredients.append(text)
             case ("recipeingredients", .text(let text)) where !text.isEmpty:
