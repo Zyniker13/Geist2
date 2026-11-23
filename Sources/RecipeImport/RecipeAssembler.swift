@@ -147,7 +147,7 @@ public enum RecipeAssembler {
             // Mixed number: "1 1/2" spans two tokens.
             if words.count > 1, words[1].contains("/") {
                 let combined = amountText + "-" + words[1]
-                if Decimal(string: combined) != nil {
+                if leadingAmount(in: combined) != nil {
                     words.removeFirst(2)
                     amountText = combined
                 }
@@ -203,7 +203,7 @@ public enum RecipeAssembler {
         var cursor = trigger + 1
         while cursor < tokens.count, amount == nil {
             let token = stripped(tokens[cursor])
-            if let value = Decimal(string: token) {
+            if let value = strictDecimal(token) {
                 amount = value
             } else if let value = yieldNumberWords[token] {
                 amount = value
@@ -233,20 +233,54 @@ public enum RecipeAssembler {
         return (amount, unit.isEmpty ? "servings" : unit)
     }
 
+    /// Foundation's Decimal(string:) prefix-parses ("3/4" → 3,
+    /// "12x" → 12) and even accepts words ("enough" → 0), so a token
+    /// must be entirely numeric — a plain number or a "3-4" range —
+    /// before it is parsed.
+    private static func strictDecimal(_ token: String) -> Decimal? {
+        let allowed = CharacterSet(charactersIn: "0123456789.-–—")
+        guard !token.isEmpty, token.unicodeScalars.allSatisfy(allowed.contains) else {
+            return nil
+        }
+        return Decimal(string: token)
+    }
+
+    private static func isPlainNumber(_ text: String) -> Bool {
+        !text.isEmpty
+            && text.allSatisfy { $0.isNumber || $0 == "." }
+    }
+
+    /// A bare fraction "3/4"; nil for any other shape.
+    private static func fraction(in token: String) -> Decimal? {
+        let parts = token.split(separator: "/")
+        guard parts.count == 2,
+            isPlainNumber(String(parts[0])), isPlainNumber(String(parts[1])),
+            let top = Decimal(string: String(parts[0])),
+            let bottom = Decimal(string: String(parts[1])), bottom != 0
+        else { return nil }
+        return top / bottom
+    }
+
     /// The leading amount of a token: "4", "1.5", "3-4" (ranges take
-    /// the low end), "1 1/2" (passed with the space as a dash).
+    /// the low end), "3/4" (a fraction), "1-1/2" (a mixed number).
     static func leadingAmount(in token: String) -> Decimal? {
-        if let value = Decimal(string: token) { return value }
-        // Range "3-4" or "3–4": the low end.
+        if let value = fraction(in: token) { return value }
         for separator in ["-", "–", "—"] {
             if token.contains(separator) {
                 let pieces = token.split(separator: Character(separator))
-                if pieces.count == 2, let low = Decimal(string: String(pieces[0])) {
-                    return low
+                if pieces.count == 2 {
+                    if let whole = strictDecimal(String(pieces[0])),
+                        let part = fraction(in: String(pieces[1]))
+                    {
+                        return whole + part
+                    }
+                    if let low = strictDecimal(String(pieces[0])) {
+                        return low
+                    }
                 }
             }
         }
-        return nil
+        return strictDecimal(token)
     }
 
     /// Words after a number keep the recipe's words for the yield
