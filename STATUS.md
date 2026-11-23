@@ -11,17 +11,28 @@
   SharedLibrary.root with Documents fallback (decision 0010).
   Proven on simulator: recipe written into the group container by the
   host is listed by the app (docs/look-dev/).
-- **Last done:** `4d49ad5` — extension Info.plist repaired (the commit
-  `897e897` had lost its NSExtension block and CFBundleDisplayName;
-  installd refused the appex without them); iOS app tests + UI test
-  green through sim-lock, appex installs cleanly.
-- **Next step:** share-sheet end-to-end from Safari, then M3.4 the
-  40-fixture corpus.
+  M3.4 import corpus DONE (`6c1da58`): 70 realistic fixtures prove all
+  three extractors end to end (decision 0012); strict numeric yield
+  parsing, class-marked zone detection, packed meta-line parsing, and
+  a central assembler sanitizer all landed through fix-per-commit work
+  on `m3.4-import-wip` (968378a → d70e894 → f82c69d → 6278374).
+- **Last done:** `6c1da58` — M3.4 branch merged to main; full `swift
+  test` 72 tests / 15 suites green on host before the merge.
+- **Next step:** share-sheet end-to-end from Safari (the last open M3
+  item); then check CI on the merge and close M3.
 - **Blocked on:** nothing. (macOS extension embedding may block on a
   signing identity — see decision 0010; not needed yet.)
 
 ## Log
 
+- 2026-11-23: M3.4 merged `6c1da58` — 70-fixture corpus green (70/70),
+  decision 0012. Fix chain on `m3.4-import-wip`: strict Decimal prefix
+  parsing (`d70e894`), yield-unit collection past fillers/ranges
+  (`f82c69d`), class zones + meta lines + central sanitizer
+  (`6278374`). Frac entities added to the JSON-LD decoder. Pitfall:
+  parallel swift test runs in one .build corrupt results — one serial
+  run is the source of truth; another: keep zone-marker stand-in lines
+  out of the content they introduce.
 - 2026-11-22: M3.3 share extensions committed `897e897` — per-platform
   app targets (XcodeGen has no per-platform dependency filter), static
   extension Info.plist (GENERATE_INFOPLIST_FILE NO — the generated one
