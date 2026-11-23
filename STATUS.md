@@ -1,40 +1,32 @@
 # Status
 
-- **Current milestone:** M3 Import — M3.1 extraction core DONE
-  (JSON-LD `7cc0d8c`, Microdata `2ce3a5b`, heuristic `1c2e32f`).
-  M3.2 app surfaces DONE (`74bc133`): import sheet with text/link/
-  photo tabs, isolated browser fallback for JS pages, Vision OCR,
-  library + detail views; UI test drives text import end to end,
-  screenshots in docs/look-dev/.
-  M3.3 share extensions code-complete (`897e897`): iOS + macOS appex
-  targets, ShareHandler, App Group `group.com.bristleconeit.geist2`,
-  SharedLibrary.root with Documents fallback (decision 0010).
-  Proven on simulator: recipe written into the group container by the
-  host is listed by the app (docs/look-dev/).
-  M3.4 import corpus DONE (`6c1da58`): 70 realistic fixtures prove all
-  three extractors end to end (decision 0012); strict numeric yield
-  parsing, class-marked zone detection, packed meta-line parsing, and
-  a central assembler sanitizer all landed through fix-per-commit work
-  on `m3.4-import-wip` (968378a → d70e894 → f82c69d → 6278374).
-- **Last done:** full `scripts/test-apple.sh` green (EXIT=0, 2026-11-23):
-  package suites 1/1, 117/9, 72/15; app unit suites on macOS and the
-  iOS simulator, including the first ExtensionWriteTests run. The
-  macOS side then grew the Safari-share proof: three tests in
-  ExtensionWriteTests drive SharedLibrary.extract + LibraryStore.write
-  on the exact attachments a Safari share delivers (URL+HTML,
-  text-only, HTML-beats-text precedence) — all pass on macOS; the
-  extension's real write stays proven by the iOS Safari E2E
-  (decision 0014).
-- **Next step:** push the M3 close-out, check CI, start M4 (Library
-  and Recipe Views).
-- **Note from Fleet Management (Mahler, 2026-11-23):** the shutdown-on-
-  exit edits to `scripts/safari-e2e.sh` and `scripts/test-apple.sh`
-  were already committed inside `81facc9`; nothing pending there.
-- **Blocked on:** nothing. (macOS extension embedding may block on a
-  signing identity — see decision 0010; not needed yet.)
+- **Current milestone:** M4 Library and Recipe Views — M4.1 DONE
+  (`1d1799b`, CI run 45229623775 green). Core query layer
+  (`LibraryQuery` + `LibraryQuerying` in RecipeCore) drives the library
+  screen: full-text search over title/ingredients/tags, tag/category/
+  cuisine/time/rating filters, four sort orders, sort + filter menus,
+  "Showing N of M" footer. RecipeApp now uses a NavigationStack on
+  iPhone and a NavigationSplitView on iPad/Mac with selection; `RecipeRow`
+  shows title, yield, time, tags; detail time labels reuse core's
+  `Duration.display`.
+- **Last done:** package tests 72/15 green; macOS app build green
+  (BUILD SUCCEEDED); CI run 45229623775 success on `1d1799b`.
+- **Next step:** M4.2 recipe view — photos, yield stepper, unit toggle,
+  check-off ingredients, steps, notes, rating, source.
+- **Blocked on:** nothing.
 
 ## Log
 
+- 2026-11-23: M4.1 committed `1d1799b` — LibraryQuery values in core +
+  6 tests; LibraryView search (searchable bound to the query), sort
+  menu (newest/oldest/title/rating), filter menu (tag, category,
+  cuisine, max time, min rating), "Showing N of M" footer; RecipeApp
+  split view on iPad/Mac (selection in LibraryModel), stack on iPhone;
+  `Duration.display` now the one time label (shortLabel removed).
+  Pitfall: LibraryQuery first landed under Sources/RecipeCore/Sources/
+  RecipeCore/ (still built via SPM recursion) — moved to the canonical
+  target dir; macOS has no `navigationBarDrawer` searchable placement,
+  so placement is #if-switched (.toolbar on macOS).
 - 2026-11-23: M3 closed. Simulator Safari E2E full pass (share sheet →
   Save → 2 recipes in the group container, both listed); E2E made
   self-contained (`81facc9`, decision 0013); extension write test
