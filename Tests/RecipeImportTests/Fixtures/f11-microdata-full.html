@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Microdata Stew</title></head>
+<body>
+<div itemscope itemtype="https://schema.org/Recipe">
+  <h1 itemprop="name">Root Vegetable Stew</h1>
+  <p itemprop="description">A slow stew of roots and beans.</p>
+  <span itemprop="recipeYield">6 servings</span>
+  <span itemprop="recipeCategory">Stew</span>
+  <span itemprop="recipeCuisine">American</span>
+  <span itemprop="keywords">stew, roots, vegan</span>
+  <div itemprop="author" itemscope itemtype="https://schema.org/Person">
+    <span itemprop="name">Example Cook</span>
+  </div>
+  <time itemprop="prepTime" datetime="PT20M">20 minutes</time>
+  <time itemprop="cookTime" datetime="PT1H">1 hour</time>
+  <time itemprop="totalTime" datetime="PT1H20M">1 hour 20 minutes</time>
+  <ul>
+    <li itemprop="recipeIngredient">3 parsnips, peeled</li>
+    <li itemprop="recipeIngredient">2 cans white beans</li>
+    <li itemprop="recipeIngredient">1 bunch kale</li>
+  </ul>
+  <ol>
+    <li itemprop="recipeInstructions">Brown the parsnips.</li>
+    <li itemprop="recipeInstructions">Add beans and stock.</li>
+    <li itemprop="recipeInstructions">Wilt the kale at the end.</li>
+  </ol>
+  <img itemprop="image" src="https://cdn.example.com/stew.jpg" alt="">
+  <dl><dt>Calories</dt><dd itemprop="nutrition" itemscope
+    itemtype="https://schema.org/NutritionInformation">
+    <span itemprop="calories">410 kcal</span></dd></dl>
+</div>
+</body></html>

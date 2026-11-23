@@ -18,6 +18,9 @@ public struct JSONLDRecipe {
     public var instructionSections: [(name: String, steps: [String])]
     public var images: [String]
     public var nutrition: [String: String]
+    public var sourceURL: String?
+    public var recipeNotes: String?
+    public var recipeTips: String?
 
     public init(
         name: String? = nil, description: String? = nil, recipeYield: String? = nil,
@@ -26,7 +29,9 @@ public struct JSONLDRecipe {
         cookTime: String? = nil, totalTime: String? = nil, ingredients: [String] = [],
         instructions: [String] = [],
         instructionSections: [(name: String, steps: [String])] = [],
-        images: [String] = [], nutrition: [String: String] = [:]
+        images: [String] = [], nutrition: [String: String] = [:],
+        sourceURL: String? = nil, recipeNotes: String? = nil,
+        recipeTips: String? = nil
     ) {
         self.name = name
         self.description = description
@@ -42,6 +47,9 @@ public struct JSONLDRecipe {
         self.instructions = instructions
         self.instructionSections = instructionSections
         self.images = images
+        self.sourceURL = sourceURL
+        self.recipeNotes = recipeNotes
+        self.recipeTips = recipeTips
         self.nutrition = nutrition
     }
 }
@@ -143,7 +151,7 @@ enum JSONLDExtractor {
             recipeYield: yieldText(of: object),
             recipeCategory: string(object["recipeCategory"]),
             recipeCuisine: string(object["recipeCuisine"]),
-            keywords: string(object["keywords"]),
+            keywords: keywords(of: object),
             author: author(of: object),
             prepTime: string(object["prepTime"]),
             cookTime: string(object["cookTime"]),
@@ -152,9 +160,15 @@ enum JSONLDExtractor {
             instructions: [],
             instructionSections: [],
             images: images(of: object),
-            nutrition: nutrition(of: object)
+            nutrition: nutrition(of: object),
+            sourceURL: string(object["url"]),
+            recipeNotes: string(object["recipeNotes"]),
+            recipeTips: string(object["recipeTips"])
         )
         extractInstructions(from: object["recipeInstructions"], into: &recipe)
+        extractInstructions(from: object["recipeInstruction"], into: &recipe)
+        extractInstructions(from: object["instructions"], into: &recipe)
+        extractInstructions(from: object["steps"], into: &recipe)
         if recipe.name == nil, recipe.ingredients.isEmpty, recipe.instructions.isEmpty {
             return nil
         }
@@ -189,6 +203,37 @@ enum JSONLDExtractor {
             return list.compactMap { string($0) }.first
         default: return nil
         }
+    }
+
+    /// Keywords arrive as a string ("a, b") or a JSON array; an array
+    /// becomes one comma-joined string so multi-word tags survive.
+    private static func keywords(of object: [String: Any]) -> String? {
+        switch object["keywords"] {
+        case let list as [Any]:
+            let parts = list.compactMap { string($0) }.filter { !$0.isEmpty }
+            return parts.isEmpty ? nil : parts.joined(separator: ", ")
+        default:
+            return string(object["keywords"])
+        }
+    }
+
+    /// Splits instruction prose on sentence ends, keeping the
+    /// punctuation, so "Steam 8 minutes. Salt and serve." becomes two
+    /// steps.
+    static func splitSentences(_ text: String) -> [String] {
+        var sentences: [String] = []
+        var current = ""
+        for character in text {
+            current.append(character)
+            if ".!?".contains(character) {
+                let trimmed = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { sentences.append(trimmed) }
+                current = ""
+            }
+        }
+        let rest = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !rest.isEmpty { sentences.append(rest) }
+        return sentences
     }
 
     /// recipeYield, yield, or the output of a HowToSupply-style yield.
@@ -229,7 +274,11 @@ enum JSONLDExtractor {
     private static func extractInstructions(from value: Any?, into recipe: inout JSONLDRecipe) {
         switch value {
         case let text as String where !text.isEmpty:
-            recipe.instructions.append(text)
+            // A single string can hold several sentences on some
+            // pages; split them into steps.
+            for sentence in splitSentences(text) where !sentence.isEmpty {
+                recipe.instructions.append(sentence)
+            }
         case let object as [String: Any]:
             addInstructionObject(object, into: &recipe)
         case let list as [Any]:

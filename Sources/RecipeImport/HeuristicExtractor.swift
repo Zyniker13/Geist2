@@ -23,6 +23,8 @@ enum HeuristicExtractor {
         var sections: [(name: String, steps: [String])]
         var yield: String?
         var times: [String: String]
+        var category: String?
+        var cuisine: String?
         var images: [String]
     }
 
@@ -74,7 +76,13 @@ enum HeuristicExtractor {
             default: recipe.totalTime = iso
             }
         }
-        recipe.ingredients = candidates.ingredients
+        recipe.recipeCategory = candidates.category
+        recipe.recipeCuisine = candidates.cuisine
+        // Pages repeat an ingredient line verbatim (copy-pasted
+        // lists); exact duplicates collapse to one while "2 cups
+        // almonds, toasted" stays distinct from "2 cups almonds".
+        var seen: Set<String> = []
+        recipe.ingredients = candidates.ingredients.filter { seen.insert($0).inserted }
         recipe.instructions = candidates.steps
         recipe.instructionSections = candidates.sections.map {
             (name: $0.name, steps: $0.steps)
@@ -106,7 +114,8 @@ enum HeuristicExtractor {
     ) -> Candidates {
         var candidates = Candidates(
             title: nil, summary: nil, ingredients: [], steps: [],
-            sections: [], yield: nil, times: [:], images: imageUrls)
+            sections: [], yield: nil, times: [:], category: nil,
+            cuisine: nil, images: imageUrls)
 
         var mode: Mode = .preamble
         var currentSection = ""
