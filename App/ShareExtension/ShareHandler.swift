@@ -58,8 +58,15 @@ final class ShareHandler: NSObject, NSExtensionRequestHandling {
             }
         }
 
+        var effectiveHTML = html
+        if effectiveHTML == nil, text == nil, let url {
+            // Safari usually shares only the URL: fetch the page here so
+            // extraction has something to work with.
+            effectiveHTML = await Self.fetchHTML(for: url)
+        }
+
         let document = SharedLibrary.extract(
-            html: html, text: text, url: url,
+            html: effectiveHTML, text: text, url: url,
             now: Int64(Date().timeIntervalSince1970),
             id: UUID().uuidString)
 
@@ -73,5 +80,21 @@ final class ShareHandler: NSObject, NSExtensionRequestHandling {
             }
         }
         box.context.completeRequest(returningItems: [], completionHandler: nil)
+    }
+
+    /// Fetches the page body for URL-only shares. Plain URLSession data
+    /// task, bridged to async; errors return nil and extraction sees
+    /// "nothing" exactly as before.
+    private static func fetchHTML(for urlString: String) async -> String? {
+        guard let url = URL(string: urlString) else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            return String(data: data, encoding: .utf8)
+                ?? String(data: data, encoding: .isoLatin1)
+        } catch {
+            return nil
+        }
     }
 }
