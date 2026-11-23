@@ -16,15 +16,17 @@
   parsing, class-marked zone detection, packed meta-line parsing, and
   a central assembler sanitizer all landed through fix-per-commit work
   on `m3.4-import-wip` (968378a → d70e894 → f82c69d → 6278374).
-- **Last done:** `6c1da58` — M3.4 branch merged to main; full `swift
-  test` 72 tests / 15 suites green on host before the merge.
-- **Last done:** macOS unit suite green after ExtensionWriteTests was
-  pointed at a temp root (the real group container needs the
-  extension's entitlement; the real write is proven by the Safari E2E):
-  7 tests / 3 suites passed on macOS, including OCR and the new
-  `testExtractedHTMLWritesIntoAScratchRoot`.
-- **Next step:** commit the temp-root test fix, then the full
-  `scripts/test-apple.sh`, Safari E2E on the Mac, and close M3.
+- **Last done:** full `scripts/test-apple.sh` green (EXIT=0, 2026-11-23):
+  package suites 1/1, 117/9, 72/15; app unit suites on macOS and the
+  iOS simulator, including the first ExtensionWriteTests run. The
+  macOS side then grew the Safari-share proof: three tests in
+  ExtensionWriteTests drive SharedLibrary.extract + LibraryStore.write
+  on the exact attachments a Safari share delivers (URL+HTML,
+  text-only, HTML-beats-text precedence) — all pass on macOS; the
+  extension's real write stays proven by the iOS Safari E2E
+  (decision 0014).
+- **Next step:** push the M3 close-out, check CI, start M4 (Library
+  and Recipe Views).
 - **Note from Fleet Management (Mahler, 2026-11-23):** the shutdown-on-
   exit edits to `scripts/safari-e2e.sh` and `scripts/test-apple.sh`
   were already committed inside `81facc9`; nothing pending there.
@@ -33,6 +35,12 @@
 
 ## Log
 
+- 2026-11-23: M3 closed. Simulator Safari E2E full pass (share sheet →
+  Save → 2 recipes in the group container, both listed); E2E made
+  self-contained (`81facc9`, decision 0013); extension write test
+  moved to a temp root (`63f4889`); full `scripts/test-apple.sh` green
+  (EXIT=0) with explicit macOS + iOS simulator re-confirmations; macOS
+  share proof added (three ExtensionWriteTests, decision 0014).
 - 2026-11-23: M3.4 merged `6c1da58` — 70-fixture corpus green (70/70),
   decision 0012. Fix chain on `m3.4-import-wip`: strict Decimal prefix
   parsing (`d70e894`), yield-unit collection past fillers/ranges
