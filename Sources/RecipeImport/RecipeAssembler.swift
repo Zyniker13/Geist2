@@ -156,7 +156,14 @@ public enum RecipeAssembler {
         if !amountText.isEmpty, let amount = leadingAmount(in: amountText) {
             document.yieldAmount = amount
             let rest = words.dropFirst(amountText.split(separator: " ").count)
-            let unit = rest.joined(separator: " ").lowercased()
+            // Drop stray numbers and filler words ("12 to 15 rolls"
+            // → "rolls") but keep spelled counts ("2 dozen cookies").
+            let unitWords = rest.filter { word in
+                let bare = word.lowercased()
+                    .trimmingCharacters(in: CharacterSet(charactersIn: ".,;:!?"))
+                return strictDecimal(bare) == nil && !yieldFillerWords.contains(bare)
+            }
+            let unit = unitWords.joined(separator: " ").lowercased()
             document.yieldUnit = unit.isEmpty ? "servings" : unit
         } else {
             // No amount anywhere: keep the text as the unit so the
@@ -218,12 +225,26 @@ public enum RecipeAssembler {
         while cursor < tokens.count, collecting {
             let original = tokens[cursor]
             let token = stripped(original)
-            if token.isEmpty || endsUnit(original)
-                || Decimal(string: token) != nil
-                || yieldNumberWords[token] != nil
-                || yieldFillerWords.contains(token)
-            {
+            if endsUnit(original) {
+                // A comma or period closes the unit, but the word
+                // before it still counts ("cups," → "cups").
+                if !token.isEmpty { unitTokens.append(token) }
                 collecting = false
+            } else if strictDecimal(token) != nil || yieldNumberWords[token] != nil {
+                // A later number ("24 to 30", "3 cups, easy") ends
+                // the unit; it is not a unit word itself.
+                collecting = false
+            } else if yieldFillerWords.contains(token) {
+                // Filler words are skipped without ending the unit;
+                // a range connector before another number ("24 to 30
+                // meatballs") belongs to the amount, so skip it too.
+                if token == "to", cursor + 1 < tokens.count,
+                    strictDecimal(stripped(tokens[cursor + 1])) != nil
+                {
+                    cursor += 2
+                } else {
+                    cursor += 1
+                }
             } else {
                 unitTokens.append(token)
                 cursor += 1
