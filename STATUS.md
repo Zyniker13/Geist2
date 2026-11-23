@@ -18,8 +18,16 @@
   on `m3.4-import-wip` (968378a → d70e894 → f82c69d → 6278374).
 - **Last done:** `6c1da58` — M3.4 branch merged to main; full `swift
   test` 72 tests / 15 suites green on host before the merge.
-- **Next step:** share-sheet end-to-end from Safari (the last open M3
-  item); then check CI on the merge and close M3.
+- **Last done:** macOS unit suite green after ExtensionWriteTests was
+  pointed at a temp root (the real group container needs the
+  extension's entitlement; the real write is proven by the Safari E2E):
+  7 tests / 3 suites passed on macOS, including OCR and the new
+  `testExtractedHTMLWritesIntoAScratchRoot`.
+- **Next step:** commit the temp-root test fix, then the full
+  `scripts/test-apple.sh`, Safari E2E on the Mac, and close M3.
+- **Note from Fleet Management (Mahler, 2026-11-23):** the shutdown-on-
+  exit edits to `scripts/safari-e2e.sh` and `scripts/test-apple.sh`
+  were already committed inside `81facc9`; nothing pending there.
 - **Blocked on:** nothing. (macOS extension embedding may block on a
   signing identity — see decision 0010; not needed yet.)
 

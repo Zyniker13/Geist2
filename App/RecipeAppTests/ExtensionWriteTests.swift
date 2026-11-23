@@ -3,13 +3,15 @@ import RecipeImport
 import XCTest
 @testable import RecipeApp
 
-/// Proves the share extension's write path on macOS: the same
-/// SharedLibrary.extract call ShareHandler makes turns the HTML an
-/// HTML email or page share carries into a recipe document, and the
-/// LibraryStore write into SharedLibrary.root lands (M3 "on the Mac").
+/// Proves the share extension's write path: the same SharedLibrary
+/// extract call ShareHandler makes turns the HTML an HTML email or
+/// page share carries into a recipe document, and LibraryStore writes
+/// and reloads it (M3 "on the Mac"). The write goes to a temp root —
+/// the real group container needs an entitlement only the extension
+/// has, and the extension's real write is proven by the Safari E2E.
 final class ExtensionWriteTests: XCTestCase {
     /// A host application gives the test an extension-like sandbox.
-    func testExtractedHTMLWritesIntoTheSharedRoot() async throws {
+    func testExtractedHTMLWritesIntoAScratchRoot() async throws {
         let html = """
         <!DOCTYPE html>
         <html lang="en">
@@ -37,10 +39,13 @@ final class ExtensionWriteTests: XCTestCase {
         let ingredientText = document.ingredientSections.flatMap(\.lines).map(\.originalText).joined()
         XCTAssertTrue(ingredientText.contains("carrots"))
 
-        let store = LibraryStore(root: SharedLibrary.root)
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("extension-write-tests-\(UUID().uuidString)")
+        let store = LibraryStore(root: root)
         try await store.write(document)
 
         let reload = try await store.loadRecipe(id: document.id)
         XCTAssertEqual(reload.title, "Miso Glazed Carrots")
+        try? FileManager.default.removeItem(at: root)
     }
 }
