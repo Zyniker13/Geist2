@@ -65,7 +65,9 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]),
         .testTarget(name: "RecipeCoreTests", dependencies: ["RecipeCore"]),
-        .testTarget(name: "RecipeImportTests", dependencies: ["RecipeImport"]),
+        .testTarget(name: "RecipeImportTests", dependencies: ["RecipeImport"], resources: [
+            .copy("Fixtures")
+        ]),
         .testTarget(name: "RecipeModulesTests", dependencies: ["RecipeModules"]),
     ]
 )

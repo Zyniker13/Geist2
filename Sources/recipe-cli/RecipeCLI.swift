@@ -7,7 +7,7 @@ struct RecipeCLI: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "recipe-cli",
         abstract: "Import, parse, scale and validate recipes from the command line.",
-        subcommands: [ScaleCommand.self, ParseCommand.self],
+        subcommands: [ScaleCommand.self, ParseCommand.self, ProbeFixturesCommand.self],
         defaultSubcommand: ScaleCommand.self)
 }
 

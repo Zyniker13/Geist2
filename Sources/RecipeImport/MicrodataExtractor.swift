@@ -85,7 +85,13 @@ enum HTMLTree {
                 {
                     index = commentEnd.upperBound
                 } else {
-                    index = afterOpen
+                    // A doctype or CDATA marker: skip to its closing ">"
+                    // so none of it leaks into the visible text.
+                    if let close = html.range(of: ">", range: afterOpen..<html.endIndex) {
+                        index = close.upperBound
+                    } else {
+                        index = html.endIndex
+                    }
                 }
                 continue
             }
@@ -348,6 +354,12 @@ enum MicrodataExtractor {
         if let content = element.attribute("content") {
             return .text(content)
         }
+        if element.tag == "time", let dt = element.attribute("datetime"),
+            !dt.isEmpty {
+            // <time datetime="PT20M">20 minutes</time>: the machine
+            // readable ISO duration wins over the display text.
+            return .text(dt)
+        }
         switch element.tag {
         case "link", "a", "area":
             if let href = element.attribute("href"), !href.isEmpty {
@@ -397,14 +409,32 @@ enum MicrodataExtractor {
                     recipe.author = first(recipe.author, authorName)
                 }
             case ("preptime", .text(let text)): recipe.prepTime = text
+            case ("preptime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.prepTime = iso }
             case ("cooktime", .text(let text)): recipe.cookTime = text
+            case ("cooktime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.cookTime = iso }
             case ("totaltime", .text(let text)): recipe.totalTime = text
+            case ("totaltime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.totalTime = iso }
             case ("performtime", .text(let text)): recipe.cookTime = text
+            case ("performtime", .item(let nested)):
+                if let iso = nested.textValue("name") { recipe.cookTime = iso }
             case ("recipeingredient", .text(let text)) where !text.isEmpty:
+                ingredients.append(text)
+            case ("recipeingredients", .text(let text)) where !text.isEmpty:
+                ingredients.append(text)
+            case ("ingredient", .text(let text)) where !text.isEmpty:
                 ingredients.append(text)
             case ("ingredients", .text(let text)) where !text.isEmpty:
                 ingredients.append(text)
             case ("recipeinstructions", .text(let text)) where !text.isEmpty:
+                instructionTexts.append(text)
+            case ("recipeinstruction", .text(let text)) where !text.isEmpty:
+                instructionTexts.append(text)
+            case ("instructions", .text(let text)) where !text.isEmpty:
+                instructionTexts.append(text)
+            case ("step", .text(let text)) where !text.isEmpty:
                 instructionTexts.append(text)
             case ("recipeinstructions", .item(let nested)):
                 addInstruction(nested, into: &recipe, texts: &instructionTexts)
@@ -420,6 +450,12 @@ enum MicrodataExtractor {
                 for (key, text) in nested.nutritionFields() {
                     recipe.nutrition[key] = text
                 }
+            case ("url", .text(let text)), ("url", .url(let text)):
+                recipe.sourceURL = first(recipe.sourceURL, text)
+            case ("recipenotes", .text(let text)):
+                recipe.recipeNotes = first(recipe.recipeNotes, text)
+            case ("recipetips", .text(let text)):
+                recipe.recipeTips = first(recipe.recipeTips, text)
             default:
                 break
             }

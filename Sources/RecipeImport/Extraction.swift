@@ -102,14 +102,46 @@ public enum RecipeExtractor {
             (.microdata, MicrodataExtractor.extract(from: html)),
             (.heuristic, HeuristicExtractor.extract(from: html)),
         ]
-        for (source, recipe) in sources {
-            guard let recipe,
+        for (source, block) in sources {
+            guard var recipe = block else { continue }
+            // A block with no name still becomes a document; the page's
+            // first <h1> is the title the site showed.
+            if recipe.name == nil || recipe.name?.isEmpty == true {
+                recipe.name = firstHeadingText(in: html)
+            }
+            guard
                 let document = RecipeAssembler.document(
                     from: recipe, now: epochSeconds, id: id)
             else { continue }
             return Report(source: source, document: document)
         }
         return nil
+    }
+
+    /// The first <h1>'s text on the page, or nil.
+    static func firstHeadingText(in html: String) -> String? {
+        guard let open = html.range(of: "<h1", options: .caseInsensitive),
+            let tagEnd = html.range(of: ">", range: open.upperBound..<html.endIndex),
+            let close = html.range(
+                of: "</h1", options: .caseInsensitive,
+                range: tagEnd.upperBound..<html.endIndex)
+        else { return nil }
+        let raw = String(html[tagEnd.upperBound..<close.lowerBound])
+        var text = ""
+        var index = raw.startIndex
+        while index < raw.endIndex {
+            if raw[index] == "<",
+                let closeTag = raw.range(of: ">", range: index..<raw.endIndex)
+            {
+                index = closeTag.upperBound
+            } else {
+                text.append(raw[index])
+                index = raw.index(after: index)
+            }
+        }
+        text = JSONLDExtractor.htmlUnescape(text)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
     }
 
     /// Extract from plain text a user pasted: line-structured recipe

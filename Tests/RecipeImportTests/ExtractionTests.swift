@@ -194,7 +194,7 @@ struct RecipeAssemblerTests {
         #expect(document.stepSections[0].steps[1].timers == [RecipeCore.Duration(seconds: 3_600)])
     }
 
-    @Test func howToSectionsBecomeOneFlatStepList() {
+    @Test func howToSectionsKeepTheirNames() {
         let recipe = JSONLDRecipe(
             name: "Sections", ingredients: [],
             instructionSections: [
@@ -202,7 +202,9 @@ struct RecipeAssemblerTests {
             ])
         let document = RecipeAssembler.document(
             from: recipe, now: 0, id: "x")
-        #expect(document?.stepSections[0].steps.map(\.text) == ["Do a.", "Do b.", "Do c."])
+        let sections = document?.stepSections ?? []
+        #expect(sections.map(\.name) == ["First", "Second"])
+        #expect(sections.map { $0.steps.map(\.text) } == [["Do a.", "Do b."], ["Do c."]])
     }
 
     @Test func yieldForms() {
