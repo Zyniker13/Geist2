@@ -1,21 +1,36 @@
 # Status
 
-- **Current milestone:** M4 Library and Recipe Views — M4.1 DONE
-  (`1d1799b`, CI run 45229623775 green). Core query layer
-  (`LibraryQuery` + `LibraryQuerying` in RecipeCore) drives the library
-  screen: full-text search over title/ingredients/tags, tag/category/
-  cuisine/time/rating filters, four sort orders, sort + filter menus,
-  "Showing N of M" footer. RecipeApp now uses a NavigationStack on
-  iPhone and a NavigationSplitView on iPad/Mac with selection; `RecipeRow`
-  shows title, yield, time, tags; detail time labels reuse core's
-  `Duration.display`.
-- **Last done:** package tests 72/15 green; macOS app build green
-  (BUILD SUCCEEDED); CI run 45229623775 success on `1d1799b`.
-- **Next step:** M4.2 recipe view — photos, yield stepper, unit toggle,
-  check-off ingredients, steps, notes, rating, source.
+- **Current milestone:** M4 Library and Recipe Views — M4.2 in review
+  on the simulator. The recipe view (M4.2) is committed `bbd0023`:
+  `RecipeDisplay` pipeline (scale → convert → render, storage keeps the
+  recipe as written, decision 0015), detail screen with photos, live
+  yield stepper, unit toggle, ingredient check-off, steps with timer
+  chips, notes, rating and source. Package tests 118+91 green;
+  `scripts/check.sh` green (exit 0) before the push.
+- **Last done:** pushed `bbd0023` — recipe view + three parser/display
+  fixes the screenshots exposed: step-text substitution no longer
+  rescans replaced text ("2 1/2 1/2 cupss"), prose timers store minutes
+  as seconds (chip read "0m"), "1 1/2 hours" merges its tokens, and
+  metric amounts render as decimals ("591.47 ml", not "591 1/2 ml").
+- **Next step:** run the RecipeViewUITests E2E on the simulator with
+  corrected expectations (×1.25 scaling, 591.47 ml metric), collect
+  detail screenshots into docs/look-dev/, check CI, then M4.3 editor.
 - **Blocked on:** nothing.
 
 ## Log
+
+- 2026-11-24: M4.2 recipe view committed `bbd0023` — RecipeDisplay
+  (RecipeCore, pure) + RecipeViewModel + RecipeDetailView; decision
+  0015. Bugs the first screenshot pass exposed and fixed: the step-text
+  substitution cascaded ("2 1/2 1/2 cupss" — replaced text was rescanned
+  by a shorter alias pattern; now one leftmost-longest pass),
+  proseTimers stored minutes as seconds (every chip showed "0m"),
+  "1 1/2 hours" double-counted its tokens, and metric lines rendered
+  kitchen fractions ("591 1/2 ml"); metric now renders decimals.
+  Regression tests added for all four (RecipeScalingTests,
+  RecipeDisplayTests, ExtractionTests). Pitfall: the UI test had
+  asserted 4→5 servings doubles the recipe — it is ×1.25; expectations
+  now match the math.
 
 - 2026-11-23: M4.1 committed `1d1799b` — LibraryQuery values in core +
   6 tests; LibraryView search (searchable bound to the query), sort
