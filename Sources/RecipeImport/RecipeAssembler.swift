@@ -103,21 +103,46 @@ public enum RecipeAssembler {
         var timers: [Duration] = []
         let lowered = text.lowercased()
         let words = lowered.split(separator: " ")
+        var skipNext = false
         for (index, word) in words.enumerated() {
-            guard let amount = numberOrFraction(word) else { continue }
-            guard index + 1 < words.count else { continue }
-            let unit = words[index + 1]
+            if skipNext {
+                skipNext = false
+                continue
+            }
+            guard var amount = numberOrFraction(word) else { continue }
+            var unitIndex = index + 1
+            // "1 1/2 hours" is three tokens: the number continues into
+            // the next one when a time unit follows it. The consumed
+            // word must not match again on its own pass.
+            if unitIndex + 1 < words.count, let more = numberOrFraction(words[unitIndex]),
+                isTimeUnit(words[unitIndex + 1])
+            {
+                amount += more
+                unitIndex += 1
+                skipNext = true
+            }
+            guard unitIndex < words.count else { continue }
+            let unit = words[unitIndex]
             var seconds: Int?
-            if unit.hasPrefix("hour") || unit.hasPrefix("hrs") {
-                seconds = Int((Decimal(amount) * 3600 as NSDecimalNumber).doubleValue)
-            } else if unit.hasPrefix("minute") || unit.hasPrefix("min") {
-                seconds = Int(amount)
+            if isTimeUnit(unit) {
+                // Prefixes, not equality: the token may carry the
+                // sentence's period ("minutes.").
+                if unit.hasPrefix("hour") || unit.hasPrefix("hrs") {
+                    seconds = Int((Decimal(amount) * 3600 as NSDecimalNumber).doubleValue)
+                } else if unit.hasPrefix("minute") || unit.hasPrefix("min") {
+                    seconds = Int((Decimal(amount) * 60 as NSDecimalNumber).doubleValue)
+                }
             }
             if let seconds, seconds > 0, seconds <= 86_400 {
                 timers.append(Duration(seconds: seconds))
             }
         }
         return timers
+    }
+
+    private static func isTimeUnit(_ word: Substring) -> Bool {
+        word.hasPrefix("hour") || word.hasPrefix("hrs") || word.hasPrefix("minute")
+            || word.hasPrefix("min")
     }
 
     private static func numberOrFraction(_ word: Substring) -> Double? {
@@ -154,7 +179,8 @@ public enum RecipeAssembler {
         }
         // Leading amount: "24 cookies", "4", "3 cups to 4 cups",
         // "about 4 servings", "a dozen mugs" without the "a".
-        let cleaned = trimmed
+        let cleaned =
+            trimmed
             .replacingOccurrences(of: "about ", with: "", options: [.anchored, .caseInsensitive])
             .trimmingCharacters(in: .whitespaces)
         var words = cleaned.split(separator: " ")
@@ -331,7 +357,8 @@ public enum RecipeAssembler {
         let letters = trimmed.filter { $0.isLetter }
         let isAllCaps = !letters.isEmpty && letters == letters.uppercased()
         guard isAllCaps, trimmed.count > 3 else { return trimmed }
-        return trimmed
+        return
+            trimmed
             .split(separator: " ")
             .map { word -> String in
                 let lowered = word.lowercased()

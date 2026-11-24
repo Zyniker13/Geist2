@@ -194,6 +194,26 @@ struct RecipeAssemblerTests {
         #expect(document.stepSections[0].steps[1].timers == [RecipeCore.Duration(seconds: 3_600)])
     }
 
+    @Test func proseTimersParseMinutesAndFractions() {
+        // "20 minutes" is 1200 seconds, not 20 — the minutes-as-seconds
+        // bug that rendered every prose timer chip as "0m".
+        #expect(
+            RecipeAssembler.timedSteps(from: "Simmer for 20 minutes.")
+                == [RecipeCore.Duration.minutes(20)])
+        #expect(
+            RecipeAssembler.timedSteps(from: "Bake for 45 minutes.")
+                == [RecipeCore.Duration.minutes(45)])
+        #expect(
+            RecipeAssembler.timedSteps(from: "Chill for 1 1/2 hours.")
+                == [RecipeCore.Duration.minutes(90)])
+        // Prose around the duration, and a trailing period, must not
+        // break the match.
+        #expect(
+            RecipeAssembler.timedSteps(from: "Cover and rest, about 30 minutes.")
+                == [RecipeCore.Duration.minutes(30)])
+        #expect(RecipeAssembler.timedSteps(from: "Serve immediately.").isEmpty)
+    }
+
     @Test func howToSectionsKeepTheirNames() {
         let recipe = JSONLDRecipe(
             name: "Sections", ingredients: [],

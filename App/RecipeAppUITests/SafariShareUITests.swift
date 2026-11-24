@@ -61,7 +61,8 @@ final class SafariShareUITests: XCTestCase {
         XCTAssertTrue(shareItem.waitForExistence(timeout: 5), "no Share in Page Menu")
         shareItem.tap()
 
-        let action = safari
+        let action =
+            safari
             .descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS 'RecipeApp'"))
             .firstMatch
@@ -97,18 +98,18 @@ final class SafariShareUITests: XCTestCase {
     /// The reduced, self-written page the test serves (no third-party
     /// text; the same shape the fixtures use).
     private static let recipeHTML = """
-    <!doctype html><html><head><meta charset="utf-8">
-    <title>Miso Glazed Carrots</title></head>
-    <body><h1>Miso Glazed Carrots</h1>
-    <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"Recipe","name":"Miso Glazed Carrots",
-     "recipeYield":"4 servings",
-     "recipeIngredient":["1 lb carrots, peeled and sliced","2 tbsp white miso",
-                         "1 tbsp honey","1 tbsp rice vinegar"],
-     "recipeInstructions":[{"@type":"HowToStep","text":"Roast the carrots."},
-                           {"@type":"HowToStep","text":"Glaze with the miso mixture."}]}
-    </script></body></html>
-    """
+        <!doctype html><html><head><meta charset="utf-8">
+        <title>Miso Glazed Carrots</title></head>
+        <body><h1>Miso Glazed Carrots</h1>
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"Recipe","name":"Miso Glazed Carrots",
+         "recipeYield":"4 servings",
+         "recipeIngredient":["1 lb carrots, peeled and sliced","2 tbsp white miso",
+                             "1 tbsp honey","1 tbsp rice vinegar"],
+         "recipeInstructions":[{"@type":"HowToStep","text":"Roast the carrots."},
+                               {"@type":"HowToStep","text":"Glaze with the miso mixture."}]}
+        </script></body></html>
+        """
 }
 
 /// Minimal HTTP server for the UI-test runner process: one route,
@@ -126,7 +127,9 @@ final class TinyHTTPServer {
         socketFD = socket(AF_INET, SOCK_STREAM, 0)
         guard socketFD >= 0 else { throw ServerError.cannotOpen }
         var yes: Int32 = 1
-        setsockopt(socketFD, Int32(SOL_SOCKET), Int32(SO_REUSEADDR), &yes, socklen_t(MemoryLayout<Int32>.size))
+        setsockopt(
+            socketFD, Int32(SOL_SOCKET), Int32(SO_REUSEADDR), &yes,
+            socklen_t(MemoryLayout<Int32>.size))
 
         var addr = sockaddr_in()
         addr.sin_family = sa_family_t(AF_INET)
@@ -154,7 +157,8 @@ final class TinyHTTPServer {
 
     private func acceptLoop() {
         let body = html.data(using: .utf8)!
-        let head = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+        let head =
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         while socketFD >= 0 {
             var clientAddr = sockaddr()
             var len = socklen_t(MemoryLayout<sockaddr>.size)
@@ -162,7 +166,9 @@ final class TinyHTTPServer {
             guard fd >= 0 else { break }
             var buffer = [UInt8](repeating: 0, count: 4096)
             _ = read(fd, &buffer, buffer.count)
-            _ = head.data(using: .utf8)!.withUnsafeBytes { send(fd, $0.baseAddress, head.utf8.count, 0) }
+            _ = head.data(using: .utf8)!.withUnsafeBytes {
+                send(fd, $0.baseAddress, head.utf8.count, 0)
+            }
             body.withUnsafeBytes { send(fd, $0.baseAddress, body.count, 0) }
             close(fd)
         }

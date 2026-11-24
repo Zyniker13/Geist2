@@ -93,6 +93,24 @@ struct RecipeScalingTests {
         #expect(scaled == "Add 4 cups stock and simmer 20 minutes.")
     }
 
+    @Test func stepTextSubstitutionDoesNotCascade() throws {
+        // The replaced amount itself contains the shorter pattern
+        // ("2 1/2 cup" inside "2 1/2 cups"): a second pass would slice
+        // it into "2 1/2 1/2 cupss". One pass only.
+        let lines = [line("2 cups vegetable stock")]
+        let scaled = try RecipeMath.stepText(
+            "Simmer the tomatoes in 2 cups of the stock for 20 minutes.",
+            lines: lines, by: 1.25)
+        #expect(scaled == "Simmer the tomatoes in 2 1/2 cups of the stock for 20 minutes.")
+    }
+
+    @Test func stepTextMatchesCaseInsensitively() throws {
+        let lines = [line("2 cups flour")]
+        let scaled = try RecipeMath.stepText(
+            "Fold in 2 Cups of the flour.", lines: lines, by: 2)
+        #expect(scaled == "Fold in 4 cups of the flour.")
+    }
+
     @Test func kitchenFractionRenders() {
         #expect(RecipeMath.kitchenFraction(of: 1) == "1")
         #expect(RecipeMath.kitchenFraction(of: 0.5) == "1/2")

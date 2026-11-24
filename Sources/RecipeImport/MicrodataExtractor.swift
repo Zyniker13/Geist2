@@ -355,7 +355,8 @@ enum MicrodataExtractor {
             return .text(content)
         }
         if element.tag == "time", let dt = element.attribute("datetime"),
-            !dt.isEmpty {
+            !dt.isEmpty
+        {
             // <time datetime="PT20M">20 minutes</time>: the machine
             // readable ISO duration wins over the display text.
             return .text(dt)

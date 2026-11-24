@@ -160,7 +160,6 @@ enum HeuristicExtractor {
             // content of its own; real classed lines keep flowing.
             if let marked = zone, text == zoneMarker(for: marked) { continue }
 
-
             // cheese" opens the ingredient zone and carries its list
             // on the same line.
             if lowered.hasPrefix("ingredient"), lowered.contains(":"),
@@ -612,7 +611,8 @@ enum HeuristicExtractor {
             }
             pieces = next
         }
-        return pieces
+        return
+            pieces
             .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t.")) }
             .filter { !$0.isEmpty }
     }
@@ -714,6 +714,11 @@ enum HeuristicExtractor {
             "sprinkle", "drizzle", "transfer", "rest", "rest", "top ",
             "turn ", "flip", "set aside", "meanwhile", "once ", "when ",
             "until", "for ", "then",
+            "blend", "whip", "garnish", "drain", "toast", "melt",
+            "marinate", "refrigerate", "chill", "process", "pulse",
+            "strain", "sear", "brown", "roast", "grill", "fry", "sauté",
+            "saute", "broil", "steam", "braise", "deglaze", "degrease",
+            "gently", "carefully", "repeat", "enjoy", "garnish",
         ]
         if cues.contains(where: { lowered.hasPrefix($0) }) { return true }
         return text.count >= 25 && text.hasSuffix(".")

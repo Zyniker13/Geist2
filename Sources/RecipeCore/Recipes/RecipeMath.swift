@@ -154,7 +154,11 @@ public enum RecipeMath {
         catalog: UnitCatalog = UnitCatalog()
     ) throws -> String {
         guard factor > 0 else { throw MathError.badFactor }
-        var result = step
+        // Every line's patterns with their replacements, longest first:
+        // the scan below replaces each match exactly once, so a
+        // substituted amount ("2 1/2 cups") is never re-matched by a
+        // shorter alias of the same line ("2 1/2 cup" → "cupss").
+        var replacements: [String: String] = [:]
         for line in lines {
             guard let quantity = line.quantity, let unitID = line.unitID else { continue }
             let scaled = try scaledLine(line, by: factor, catalog: catalog)
@@ -164,14 +168,36 @@ public enum RecipeMath {
             // Recipes write amounts in more forms than the renderer
             // emits ("2 tbsp", "2 tablespoons", "2 T"), so the match
             // is on the number and the unit name in any casing, not
-            // on one rendering. The longest form is replaced first so
-            // the identifier pattern ("2 cup") cannot slice the plural
-            // alias ("2 cups") into "4 cupss".
-            let patterns = numberUnitPatterns(
-                quantity: quantity, unitID: unitID, catalog: catalog)
-            for pattern in patterns.sorted(by: { $0.count > $1.count })
-            where result.contains(pattern) {
-                result = result.replacingOccurrences(of: pattern, with: scaledText)
+            // on one rendering.
+            for pattern in numberUnitPatterns(quantity: quantity, unitID: unitID, catalog: catalog)
+            {
+                replacements[pattern] = scaledText
+            }
+        }
+        guard !replacements.isEmpty else { return step }
+        let ordered = replacements.sorted { $0.key.count > $1.key.count }
+        // One left-to-right pass: at each character the longest pattern
+        // that matches (case-insensitively) wins, and the scan resumes
+        // after the replacement, so replaced text is never rescanned.
+        var result = ""
+        result.reserveCapacity(step.count)
+        var index = step.startIndex
+        while index < step.endIndex {
+            var matched = false
+            for (pattern, scaledText) in ordered {
+                guard
+                    let end = step.index(
+                        index, offsetBy: pattern.count, limitedBy: step.endIndex),
+                    step[index..<end].lowercased() == pattern.lowercased()
+                else { continue }
+                result += scaledText
+                index = end
+                matched = true
+                break
+            }
+            if !matched {
+                result.append(step[index])
+                index = step.index(after: index)
             }
         }
         return result
@@ -259,7 +285,11 @@ public enum RecipeMath {
         return "\(whole) \(best.0)"
     }
 
-    private static func wholeOrDecimal(_ amount: Decimal) -> String {
+    /// The amount as a plain decimal: whole when integral, else two
+    /// fraction digits. Public: metric amounts ("591.47 ml") render as
+    /// decimals in the recipe view, where kitchen fractions would be
+    /// out of place.
+    public static func wholeOrDecimal(_ amount: Decimal) -> String {
         var rounded = Decimal()
         var source = amount
         NSDecimalRound(&rounded, &source, 0, .plain)
