@@ -11,25 +11,43 @@
   `.build/m44/`), AX screenshots in docs/look-dev/m4.4-*.png verified
   by eye. `scripts/check.sh all` green (package tests, iOS 27/27 unit
   tests, macOS build) before each push.
-- **Last done:** committed `c4c24b0`; CI run 45586778119 success.
-  Root-caused the macOS UI-test runner hang (below).
-- **Next step:** Mac smoke screenshots (the M4 done-when's iPhone half
-  is already covered; iPad screenshots next), then commit the pending
-  UI-test adaptations (ImportFlow/RecipeView now tap the `addRecipeMenu`
-  menu → "Import…"), then M5 shopping lists.
-- **Blocked on:** macOS UI tests cannot run on this Mac without
-  Mahler: the runner hangs because
+- **Last done:** the M4.1 iPad gap is closed — RootLayout picks
+  NavigationSplitView (.regular) vs NavigationStack (.compact) by
+  horizontal size class (`0fd198c`, decision 0018); the
+  `-openFirstRecipe` hook now sets selection AND the path, so the
+  deep link opens the split-view detail pane on iPad (verified by
+  screenshot) and still pushes on iPhone; fresh iPad screenshots in
+  docs/look-dev/m4.4-ipad-{library,detail}.png. UI-test adaptations
+  (tap the add menu) committed `f0e93df`. A11y suite green on record
+  (`a11y-final.xcresult`).
+- **Next step:** Mac smoke screenshots + Mac UI tests (blocked, see
+  below), then M5 shopping lists.
+- **Blocked on:** macOS UI tests and Mac smoke screenshots cannot run
+  on this Mac without Mahler: the UI-test runner hangs because
   `/var/db/com.apple.dt.automationmode/automation-enabled` is missing
-  (root:wheel; `sudo` is deny-blocked here). The "Enable UI
-  Automation" password prompt never renders (coreautha shows "close of
-  host window (null)" and stays windowless for 50+ min), wedging
-  coreauthd's evaluation. Fix: `sudo touch
+  (root:wheel; `sudo` is deny-blocked here), and `screencapture` has
+  no Screen Recording permission. The "Enable UI Automation" password
+  prompt never renders (coreautha shows "close of host window (null)"
+  and stays windowless for 50+ min), wedging coreauthd's evaluation.
+  Fix: `sudo touch
   /var/db/com.apple.dt.automationmode/automation-enabled` (a reboot
   alone clears the wedge but the next run hangs again). Details in
   decision 0017. Everything else proceeds.
 
 ## Log
 
+- 2026-11-25: iPad split-view gap closed (`0fd198c`, decision 0018).
+  Found via a screenshot: `#if os(iOS)` had given iPad the iPhone
+  stack since `1d1799b`. RootLayout now branches on
+  horizontalSizeClass; row taps set selection everywhere; the
+  deep-link hook sets selection + path together (a size-class branch
+  inside a delayed task never took effect on iPad — the unconditional
+  write is the fix). Pitfall: a bare `xcodebuild` build without
+  CODE_SIGN_ENTITLEMENTS runs but silently loses the App Group —
+  containerURL(forSecurityApplicationGroupIdentifier:) returns nil
+  and the library reads an empty Documents fallback; always pass
+  `CODE_SIGN_ENTITLEMENTS=$(pwd)/App/RecipeApp/RecipeApp.entitlements`
+  for simulator installs.
 - 2026-11-25: macOS UI-test runner hang root-caused from coreauthd/
   coreautha logs: testmanagerd → `evaluatePolicy:2 "Enable UI
   Automation"` (option 1021 XCTest) because the automation-mode state
