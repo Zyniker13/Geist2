@@ -1,24 +1,35 @@
 # Status
 
-- **Current milestone:** M4 Library and Recipe Views — M4.2 in review
-  on the simulator. The recipe view (M4.2) is committed `bbd0023`:
-  `RecipeDisplay` pipeline (scale → convert → render, storage keeps the
-  recipe as written, decision 0015), detail screen with photos, live
-  yield stepper, unit toggle, ingredient check-off, steps with timer
-  chips, notes, rating and source. Package tests 118+91 green;
-  `scripts/check.sh` green (exit 0) before the push.
-- **Last done:** pushed `bbd0023` — recipe view + three parser/display
-  fixes the screenshots exposed: step-text substitution no longer
-  rescans replaced text ("2 1/2 1/2 cupss"), prose timers store minutes
-  as seconds (chip read "0m"), "1 1/2 hours" merges its tokens, and
-  metric amounts render as decimals ("591.47 ml", not "591 1/2 ml").
-- **Next step:** run the RecipeViewUITests E2E on the simulator with
-  corrected expectations (×1.25 scaling, 591.47 ml metric), collect
-  detail screenshots into docs/look-dev/, check CI, then M4.3 editor.
+- **Current milestone:** M4 Library and Recipe Views — M4.2 DONE
+  (view committed `bbd0023`, E2E + screenshots `c86d282`). The detail
+  screen renders through the `RecipeDisplay` pipeline (scale → convert
+  → render; storage keeps the recipe as written, decision 0015):
+  photos, live yield stepper, unit toggle, ingredient check-off, steps
+  with timer chips, notes, rating, source. RecipeViewUITests pass end
+  to end on the simulator (as-written → ×1.25 scale → metric →
+  check-off); ImportFlow text-tab E2E passes; Safari share E2E passes
+  through `scripts/safari-e2e.sh` (13 recipes in the group container,
+  4 from the page). Screenshots in docs/look-dev/m4.2-detail-*.png.
+- **Last done:** pushed `c86d282` — UI tests tap the row Button (the
+  inner StaticText re-resolves as "Other" and the tap misses), tomato
+  expectation corrected to the lb rounding step (1 lb × 1.25 → 1 1/2
+  lb), four m4.2 screenshots checked in.
+- **Next step:** M4.3 recipe editor — structured ingredient rows,
+  sections, steps, timers, photos.
 - **Blocked on:** nothing.
 
 ## Log
 
+- 2026-11-25: M4.2 closed. UI-test chain fixed with real evidence:
+  ImportFlow tapped a StaticText that no longer navigated (the row is
+  a Button — tap the button); RecipeView's check-off taps hit the same
+  mismatch ("Automation type mismatch: computed Other from legacy
+  attributes vs StaticText"); the tomato line read "1 1/2 lbs" because
+  the M2.2 lb rounding step snaps 1.25 to halves — the app was right,
+  the test was not. Safari E2E must run via scripts/safari-e2e.sh
+  (its test serves its own localhost page; bundling it with other UI
+  tests fails it). Pitfall: /tmp pruned the first failure's evidence
+  mid-investigation — keep result bundles under the repo's .build/.
 - 2026-11-24: M4.2 recipe view committed `bbd0023` — RecipeDisplay
   (RecipeCore, pure) + RecipeViewModel + RecipeDetailView; decision
   0015. Bugs the first screenshot pass exposed and fixed: the step-text
