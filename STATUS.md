@@ -1,25 +1,58 @@
 # Status
 
-- **Current milestone:** M4 Library and Recipe Views — M4.2 DONE
-  (view committed `bbd0023`, E2E + screenshots `c86d282`). The detail
-  screen renders through the `RecipeDisplay` pipeline (scale → convert
-  → render; storage keeps the recipe as written, decision 0015):
-  photos, live yield stepper, unit toggle, ingredient check-off, steps
-  with timer chips, notes, rating, source. RecipeViewUITests pass end
-  to end on the simulator (as-written → ×1.25 scale → metric →
-  check-off); ImportFlow text-tab E2E passes; Safari share E2E passes
-  through `scripts/safari-e2e.sh` (13 recipes in the group container,
-  4 from the page). Screenshots in docs/look-dev/m4.2-detail-*.png.
-- **Last done:** pushed `c86d282` — UI tests tap the row Button (the
-  inner StaticText re-resolves as "Other" and the tap misses), tomato
-  expectation corrected to the lb rounding step (1 lb × 1.25 → 1 1/2
-  lb), four m4.2 screenshots checked in.
-- **Next step:** M4.3 recipe editor — structured ingredient rows,
-  sections, steps, timers, photos.
-- **Blocked on:** nothing.
+- **Current milestone:** M4 Library and Recipe Views — M4.4 nearly
+  closed. Core committed `c4c24b0`: two visual themes (Paper/Slate with
+  `preferredColorScheme`), Mac menu commands (⌘N New Recipe, ⌘⇧I
+  Import…, View→Theme), delete with confirmation, and the AX-size
+  editor layout. RecipeLifecycleUITests (edit-from-detail,
+  delete-with-confirmation) pass on the simulator
+  (`.build/m44/ui.xcresult`); RecipeA11yUITests passes with the
+  `-openFirstRecipe` deep-link hook (`a11y6`/`a11y7` in
+  `.build/m44/`), AX screenshots in docs/look-dev/m4.4-*.png verified
+  by eye. `scripts/check.sh all` green (package tests, iOS 27/27 unit
+  tests, macOS build) before each push.
+- **Last done:** committed `c4c24b0`; CI run 45586778119 success.
+  Root-caused the macOS UI-test runner hang (below).
+- **Next step:** Mac smoke screenshots (the M4 done-when's iPhone half
+  is already covered; iPad screenshots next), then commit the pending
+  UI-test adaptations (ImportFlow/RecipeView now tap the `addRecipeMenu`
+  menu → "Import…"), then M5 shopping lists.
+- **Blocked on:** macOS UI tests cannot run on this Mac without
+  Mahler: the runner hangs because
+  `/var/db/com.apple.dt.automationmode/automation-enabled` is missing
+  (root:wheel; `sudo` is deny-blocked here). The "Enable UI
+  Automation" password prompt never renders (coreautha shows "close of
+  host window (null)" and stays windowless for 50+ min), wedging
+  coreauthd's evaluation. Fix: `sudo touch
+  /var/db/com.apple.dt.automationmode/automation-enabled` (a reboot
+  alone clears the wedge but the next run hangs again). Details in
+  decision 0017. Everything else proceeds.
 
 ## Log
 
+- 2026-11-25: macOS UI-test runner hang root-caused from coreauthd/
+  coreautha logs: testmanagerd → `evaluatePolicy:2 "Enable UI
+  Automation"` (option 1021 XCTest) because the automation-mode state
+  file is missing; the only available mechanism is the account
+  password (no Touch ID pairing, no Apple Watch); the password panel
+  never appears and the evaluation wedges open (a 06:40 loginwindow
+  probe bounced off it with "LostFocus"). Blocked on one `sudo touch`
+  from Mahler.
+- 2026-11-25: M4.4 core committed `c4c24b0` — themes, Mac menu
+  commands, delete UI, AX-size editor layout, RecipeLifecycleUITests +
+  RecipeA11yUITests, decision 0017, m4.4 screenshots. iOS lifecycle
+  tests green; a11y green via the deep-link hook; check.sh green.
+- 2026-11-25: M4.3 editor committed `aac466f` — RecipeEditorModel +
+  RecipeEditorView + 9 model tests + RecipeEditorUITests (create
+  through the + menu, fill, save, verify the detail round-trip with a
+  "10m" timer chip); decision 0016. Pitfalls: xcodegen with an
+  explicit --spec/--project pair creates a NESTED project
+  (App/RecipeApp.xcodeproj/RecipeApp.xcodeproj) — run `xcodegen
+  generate` from App/ instead; Decimal(string: "1 1/2") == 1 (parse
+  the fraction form first); a fresh RecipeDocument's empty section
+  needs a starter row or editor indices crash; a vertical TextField
+  exposes as TextField (not TextView) to XCUITest; a prefilled field
+  needs press-for-duration + Select All before typeText.
 - 2026-11-25: M4.2 closed. UI-test chain fixed with real evidence:
   ImportFlow tapped a StaticText that no longer navigated (the row is
   a Button — tap the button); RecipeView's check-off taps hit the same
