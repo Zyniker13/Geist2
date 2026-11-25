@@ -7,6 +7,7 @@ import SwiftUI
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryModel
     @State private var showingImport = false
+    @State private var showingEditor = false
 
     var body: some View {
         List {
@@ -44,15 +45,28 @@ struct LibraryView: View {
         .navigationTitle("Recipes")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingImport = true
+                Menu {
+                    Button {
+                        showingImport = true
+                    } label: {
+                        Label("Import…", systemImage: "square.and.arrow.down")
+                    }
+                    Button {
+                        showingEditor = true
+                    } label: {
+                        Label("New recipe", systemImage: "square.and.pencil")
+                    }
                 } label: {
-                    Label("Import", systemImage: "plus")
+                    Label("Add", systemImage: "plus")
                 }
+                .accessibilityIdentifier("addRecipeMenu")
             }
         }
         .sheet(isPresented: $showingImport) {
             ImportView()
+        }
+        .sheet(isPresented: $showingEditor) {
+            RecipeEditorView(recipe: nil)
         }
         .task { await library.refresh() }
     }

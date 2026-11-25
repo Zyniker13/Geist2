@@ -60,6 +60,7 @@ private final class ViewHolder: ObservableObject {
 private struct RecipeDetailContent: View {
     @EnvironmentObject private var library: LibraryModel
     @ObservedObject var viewModel: RecipeViewModel
+    @State private var showingEditor = false
 
     var body: some View {
         List {
@@ -80,6 +81,22 @@ private struct RecipeDetailContent: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingEditor = true
+                } label: {
+                    Label("Edit", systemImage: "square.and.pencil")
+                }
+                .accessibilityIdentifier("editRecipe")
+            }
+        }
+        .sheet(isPresented: $showingEditor) {
+            RecipeEditorView(recipe: viewModel.recipe)
+                .onDisappear {
+                    viewModel.reloadFromLibrary()
+                }
+        }
     }
 
     // MARK: Summary

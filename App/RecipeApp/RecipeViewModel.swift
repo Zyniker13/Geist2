@@ -103,6 +103,15 @@ final class RecipeViewModel: ObservableObject {
 
     // MARK: Edits through the store
 
+    /// Re-reads the recipe from the library after an edit (the editor
+    /// wrote through the store; this view model holds a snapshot).
+    func reloadFromLibrary() {
+        if let stored = library.recipes.first(where: { $0.id == recipe.id }) {
+            recipe = stored
+            checked = []
+        }
+    }
+
     /// Sets the rating (0–5) and writes it through the library. The
     /// document refreshes to the stored copy.
     func setRating(_ value: Int) async {

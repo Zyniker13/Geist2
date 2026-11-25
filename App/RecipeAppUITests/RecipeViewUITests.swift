@@ -78,7 +78,8 @@ final class RecipeViewUITests: XCTestCase {
         // misses ("Automation type mismatch").
         app.buttons["As written"].firstMatch.tap()
         let writtenLine = app.buttons["2 1/2 cups vegetable stock"].firstMatch
-        XCTAssertTrue(writtenLine.waitForExistence(timeout: 5),
+        XCTAssertTrue(
+            writtenLine.waitForExistence(timeout: 5),
             "written line missing after toggle back")
         writtenLine.tap()
         // 1 lb × 1.25 = 1.25 lb, which the lb rounding step (halves,

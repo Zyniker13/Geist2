@@ -77,7 +77,9 @@ public enum RecipeAssembler {
 
     /// "Bake for 45 minutes" carries a timer; ISO durations inside step
     /// text become Step.timers for cook mode.
-    static func timedSteps(from text: String) -> [Duration] {
+    /// Timers detected in step text (ISO durations and prose like
+    /// "20 minutes"); public so the editor can reuse the detection.
+    public static func timedSteps(from text: String) -> [Duration] {
         var timers: [Duration] = []
         var index = text.startIndex
         while let range = text.range(of: "PT", range: index..<text.endIndex) {
