@@ -6,6 +6,7 @@ import SwiftUI
 /// and a plain NavigationStack on iPhone.
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryModel
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @StateObject private var themeStore = ThemeStore()
     @State private var showingImport = false
     @State private var showingEditor = false
@@ -21,9 +22,10 @@ struct LibraryView: View {
                 )
                 .simultaneousGesture(
                     TapGesture().onEnded {
-                        #if os(macOS)
-                            library.selection = recipe.id
-                        #endif
+                        // The split view's detail pane (iPad, Mac)
+                        // follows the selection; the iPhone stack
+                        // ignores it and pushes through the link.
+                        library.selection = recipe.id
                     }
                 )
                 .contextMenu {
@@ -125,12 +127,15 @@ struct LibraryView: View {
         .task { await library.refresh() }
     }
 
-    /// iOS keeps the search field always visible in a nav bar drawer;
-    /// macOS has no drawer and uses the toolbar field.
+    /// iPhone keeps the search field always visible in a nav bar drawer;
+    /// iPad and Mac have no drawer and use the toolbar field.
     private var searchablePlacement: SearchFieldPlacement {
         #if os(macOS)
             return .toolbar
         #else
+            if horizontalSizeClass == .regular {
+                return .toolbar
+            }
             return .navigationBarDrawer(displayMode: .always)
         #endif
     }
