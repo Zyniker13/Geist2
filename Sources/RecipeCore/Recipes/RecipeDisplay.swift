@@ -225,7 +225,7 @@ public enum RecipeDisplay {
     /// written).
     /// The amount as its unit reads it: metric units show a decimal
     /// ("591.5 ml"), kitchen units a fraction ("2 1/2 cups").
-    private static func amountText(_ amount: Decimal, unitID: String?) -> String {
+    static func amountText(_ amount: Decimal, unitID: String?) -> String {
         switch unitID {
         case "ml", "l", "g", "kg":
             return RecipeMath.wholeOrDecimal(amount)
