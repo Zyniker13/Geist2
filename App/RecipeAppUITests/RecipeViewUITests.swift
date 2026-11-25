@@ -67,19 +67,23 @@ final class RecipeViewUITests: XCTestCase {
         let metric = app.buttons["Metric"].firstMatch
         XCTAssertTrue(metric.waitForExistence(timeout: 5), "unit toggle missing")
         metric.tap()
-        XCTAssertTrue(
-            app.staticTexts["591.47 ml vegetable stock"].waitForExistence(timeout: 5),
-            "metric line missing")
+        let metricLine = app.staticTexts["591.47 ml vegetable stock"].firstMatch
+        XCTAssertTrue(metricLine.waitForExistence(timeout: 5), "metric line missing")
         snap(app, "detail-metric")
 
-        // Back to written, then check off two lines.
+        // Back to written, then check off two lines. Re-query: the
+        // toggle rebuilds the list and the old element may be stale.
+        // Tap the row's Button, not the StaticText inside it — the text
+        // re-resolves as "Other" between snapshot passes and the tap
+        // misses ("Automation type mismatch").
         app.buttons["As written"].firstMatch.tap()
-        XCTAssertTrue(
-            app.staticTexts["2 1/2 cups vegetable stock"].waitForExistence(timeout: 5),
+        let writtenLine = app.buttons["2 1/2 cups vegetable stock"].firstMatch
+        XCTAssertTrue(writtenLine.waitForExistence(timeout: 5),
             "written line missing after toggle back")
-        scaled.tap()
-        // 1 lb × 1.25 = 1 1/4 lbs.
-        let tomatoes = app.staticTexts["1 1/4 lbs tomatoes"].firstMatch
+        writtenLine.tap()
+        // 1 lb × 1.25 = 1.25 lb, which the lb rounding step (halves,
+        // M2.2's kitchen-friendly rule) snaps to 1 1/2.
+        let tomatoes = app.buttons["1 1/2 lbs tomatoes"].firstMatch
         XCTAssertTrue(tomatoes.waitForExistence(timeout: 5), "scaled tomato line missing")
         tomatoes.tap()
         snap(app, "detail-checked-off")

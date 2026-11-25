@@ -58,8 +58,9 @@ final class ImportFlowUITests: XCTestCase {
         snap(app, "import-saved")
 
         app.buttons["Cancel"].firstMatch.tap()
-        // The list now shows the recipe.
-        let row = app.staticTexts["Lemon Cake"].firstMatch
+        // The list now shows the recipe. Tap the row's button (tapping
+        // the title's static text does not always hit the button).
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Lemon Cake'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "recipe row missing")
         snap(app, "library-with-recipe")
         row.tap()
