@@ -26,11 +26,14 @@ final class ImportFlowUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // The library opens empty; the import sheet opens from +.
-        let addButton = app.buttons["Import"].firstMatch
-        XCTAssertTrue(addButton.waitForExistence(timeout: 10), "+ button missing")
+        // The library opens; the import sheet opens from the + menu.
+        let addButton = app.buttons["addRecipeMenu"].firstMatch
+        XCTAssertTrue(addButton.waitForExistence(timeout: 10), "+ menu missing")
         snap(app, "library-empty")
         addButton.tap()
+        let importItem = app.buttons["Import…"].firstMatch
+        XCTAssertTrue(importItem.waitForExistence(timeout: 5), "Import item missing")
+        importItem.tap()
 
         // Switch to the Text tab.
         let textTab = app.buttons["Text"].firstMatch

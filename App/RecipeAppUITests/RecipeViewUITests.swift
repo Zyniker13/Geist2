@@ -25,9 +25,12 @@ final class RecipeViewUITests: XCTestCase {
 
         // Seed a recipe through the import sheet (the same path users
         // take), so the test is self-contained.
-        let addButton = app.buttons["Import"].firstMatch
-        XCTAssertTrue(addButton.waitForExistence(timeout: 10), "+ button missing")
+        let addButton = app.buttons["addRecipeMenu"].firstMatch
+        XCTAssertTrue(addButton.waitForExistence(timeout: 10), "+ menu missing")
         addButton.tap()
+        let importItem = app.buttons["Import…"].firstMatch
+        XCTAssertTrue(importItem.waitForExistence(timeout: 5), "Import item missing")
+        importItem.tap()
 
         let textTab = app.buttons["Text"].firstMatch
         XCTAssertTrue(textTab.waitForExistence(timeout: 5), "Text tab missing")
