@@ -279,30 +279,47 @@ private struct EditorForm: View {
 }
 
 /// One ingredient row: amount, unit, item, preparation, note, flags.
+/// At accessibility Dynamic Type sizes the fixed column widths would
+/// truncate the ingredient name, so the rows stack vertically instead.
 private struct IngredientRowEditor: View {
     @Binding var row: EditableIngredientRow
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                TextField("Amount", text: $row.amount)
-                    .frame(maxWidth: 70)
-                TextField("Unit", text: $row.unit)
-                    .frame(maxWidth: 90)
-                TextField("Ingredient", text: $row.item)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    TextField("Ingredient", text: $row.item)
+                    HStack(spacing: 6) {
+                        TextField("Amount", text: $row.amount)
+                        TextField("Unit", text: $row.unit)
+                    }
+                    TextField("Preparation", text: $row.preparation)
+                    TextField("Note", text: $row.note)
+                    Toggle("Optional", isOn: $row.optional)
+                    Toggle("To taste", isOn: $row.toTaste)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    TextField("Amount", text: $row.amount)
+                        .frame(maxWidth: 70)
+                    TextField("Unit", text: $row.unit)
+                        .frame(maxWidth: 90)
+                    TextField("Ingredient", text: $row.item)
+                }
+                HStack(spacing: 6) {
+                    TextField("Preparation", text: $row.preparation)
+                    TextField("Note", text: $row.note)
+                        .frame(maxWidth: 120)
+                }
+                HStack {
+                    Toggle("Optional", isOn: $row.optional)
+                        .frame(maxWidth: 130)
+                    Toggle("To taste", isOn: $row.toTaste)
+                        .frame(maxWidth: 130)
+                }
+                .font(.footnote)
             }
-            HStack(spacing: 6) {
-                TextField("Preparation", text: $row.preparation)
-                TextField("Note", text: $row.note)
-                    .frame(maxWidth: 120)
-            }
-            HStack {
-                Toggle("Optional", isOn: $row.optional)
-                    .frame(maxWidth: 130)
-                Toggle("To taste", isOn: $row.toTaste)
-                    .frame(maxWidth: 130)
-            }
-            .font(.footnote)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .contain)

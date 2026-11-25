@@ -161,6 +161,17 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true
+  RecipeAppUITests_macOS:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - RecipeAppUITests
+    dependencies:
+      - target: RecipeApp_macOS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        TEST_TARGET_NAME: RecipeApp_macOS
 schemes:
   RecipeApp-iOS:
     build:
@@ -191,3 +202,11 @@ schemes:
     test:
       targets:
         - RecipeAppTests_macOS
+  RecipeApp-macOS-UI:
+    build:
+      targets:
+        RecipeApp_macOS: all
+        RecipeAppUITests_macOS: [test]
+    test:
+      targets:
+        - RecipeAppUITests_macOS

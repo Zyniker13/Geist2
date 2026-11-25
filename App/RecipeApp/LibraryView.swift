@@ -6,8 +6,10 @@ import SwiftUI
 /// and a plain NavigationStack on iPhone.
 struct LibraryView: View {
     @EnvironmentObject private var library: LibraryModel
+    @StateObject private var themeStore = ThemeStore()
     @State private var showingImport = false
     @State private var showingEditor = false
+    @State private var recipePendingDelete: RecipeDocument?
 
     var body: some View {
         List {
@@ -22,7 +24,15 @@ struct LibraryView: View {
                         #if os(macOS)
                             library.selection = recipe.id
                         #endif
-                    })
+                    }
+                )
+                .contextMenu {
+                    Button(role: .destructive) {
+                        recipePendingDelete = recipe
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
             if !library.visibleRecipes.isEmpty
                 && library.visibleRecipes.count
@@ -60,6 +70,25 @@ struct LibraryView: View {
                     Label("Add", systemImage: "plus")
                 }
                 .accessibilityIdentifier("addRecipeMenu")
+                .accessibilityLabel("Add a recipe")
+            }
+            ToolbarItem(placement: .navigation) {
+                Menu {
+                    ForEach(Theme.all, id: \.name) { theme in
+                        Button {
+                            themeStore.themeName = theme.name
+                        } label: {
+                            if themeStore.themeName == theme.name {
+                                Label(theme.label, systemImage: "checkmark")
+                            } else {
+                                Text(theme.label)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Theme", systemImage: "paintpalette")
+                }
+                .accessibilityLabel("Theme")
             }
         }
         .sheet(isPresented: $showingImport) {
@@ -67,6 +96,31 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showingEditor) {
             RecipeEditorView(recipe: nil)
+        }
+        .alert(
+            "Delete “\(recipePendingDelete?.title ?? "")”?",
+            isPresented: Binding(
+                get: { recipePendingDelete != nil },
+                set: { if !$0 { recipePendingDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                if let recipe = recipePendingDelete {
+                    Task { await library.delete(recipe) }
+                }
+                recipePendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                recipePendingDelete = nil
+            }
+        } message: {
+            Text("The recipe moves to Recently Deleted.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .newRecipeRequested)) { _ in
+            showingEditor = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .importRequested)) { _ in
+            showingImport = true
         }
         .task { await library.refresh() }
     }
